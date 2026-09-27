@@ -128,14 +128,24 @@
                 <div class="stage-element stage-caption-box" id="stage-caption-box" tabindex="0" title="Captions Area (Drag box to move, drag any edge or corner to resize)">
                   <div class="stage-element-tag">💬 Captions Box</div>
                   <div class="stage-caption-content" id="stage-caption-content">
-                    <span class="demo-word" data-w="0">WAIT...</span>
-                    <span class="demo-word" data-w="1">DID</span>
-                    <span class="demo-word" data-w="2">HE</span>
-                    <span class="demo-word" data-w="3">REALLY</span>
-                    <br/>
-                    <span class="demo-word active" data-w="4">JUST</span>
-                    <span class="demo-word active" data-w="5">DO</span>
-                    <span class="demo-word active" data-w="6">THAT?!</span>
+                    <div class="demo-line" data-line="0">
+                      <span class="demo-word" data-w="0">WAIT...</span>
+                      <span class="demo-word" data-w="1">DID</span>
+                      <span class="demo-word" data-w="2">HE</span>
+                      <span class="demo-word" data-w="3">REALLY</span>
+                    </div>
+                    <div class="demo-line" data-line="1">
+                      <span class="demo-word" data-w="4">GET</span>
+                      <span class="demo-word" data-w="5">AN</span>
+                      <span class="demo-word active" data-w="6">UNFAIR</span>
+                      <span class="demo-word active" data-w="7">ADVANTAGE?!</span>
+                    </div>
+                    <div class="demo-line" data-line="2">
+                      <span class="demo-word" data-w="8">WATCH</span>
+                      <span class="demo-word" data-w="9">THIS</span>
+                      <span class="demo-word active" data-w="10">INSANE</span>
+                      <span class="demo-word" data-w="11">MOMENT!</span>
+                    </div>
                   </div>
                   <!-- 8-Directional Resize Handles for Captions -->
                   <div class="stage-resize-handle handle-t"  data-target="caption" data-dir="t"  title="Resize Top"></div>
@@ -540,13 +550,42 @@
                     </div>
                   </div>
                   <div class="slider-group">
-                    <label class="slider-label">🔤 Font Size</label>
-                    <div class="btn-group">
-                      <button type="button" class="btn-option" onclick="setCaptionSize('medium')">Medium</button>
-                      <button type="button" class="btn-option active" onclick="setCaptionSize('large')">Large</button>
-                      <button type="button" class="btn-option" onclick="setCaptionSize('huge')">Huge</button>
+                    <div class="slider-label-row">
+                      <label class="slider-label">🔤 Font Size</label>
+                      <span class="slider-value-badge" id="caption-font-size-badge">Large (115px)</span>
+                    </div>
+                    <select id="caption-font-size-select" class="form-input custom-select" onchange="onCaptionSizeSelect(this.value)">
+                      <option value="small">Small (80px)</option>
+                      <option value="medium">Medium (95px)</option>
+                      <option value="large" selected>Large (115px — Recommended)</option>
+                      <option value="huge">Huge (135px)</option>
+                      <option value="extrahuge">💥 Extra Huge (160px)</option>
+                      <option value="custom">⚙️ Custom Size (Manual Slider)...</option>
+                    </select>
+                  </div>
+                </div>
+
+                <!-- Custom Font Size Slider (Appears when Custom is picked) -->
+                <div id="custom-font-size-row" class="hidden" style="margin-top: -4px; margin-bottom: 12px;">
+                  <div class="slider-group" style="background: rgba(255, 255, 255, 0.02); padding: 9px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+                    <div class="slider-label-row">
+                      <label class="slider-label" style="font-size: 11px;"><i class="fas fa-sliders-h"></i> Custom Font Size (1080p Pixels)</label>
+                      <span class="slider-value-badge" id="custom-font-size-badge">150px</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px; margin-top: 5px;">
+                      <input type="range" id="custom-font-size-slider" min="40" max="220" value="150" step="2" class="slider-range" style="flex: 1;" oninput="onCustomFontSizeInput(this.value)">
+                      <input type="number" id="custom-font-size-number" min="40" max="220" value="150" class="form-input" style="width: 74px; padding: 4px 8px; text-align: center; font-weight: 700; font-size: 12px;" oninput="onCustomFontSizeInput(this.value)">
                     </div>
                   </div>
+                </div>
+
+                <!-- Live Preview Caption Text Input (User requested to see more text in preview) -->
+                <div class="slider-group" style="margin-top: 6px; margin-bottom: 12px;">
+                  <div class="slider-label-row">
+                    <label class="slider-label"><i class="fas fa-pen-nib"></i> Live Preview Caption Text</label>
+                    <span class="slider-value-badge" style="cursor: pointer;" onclick="resetDemoCaptionText()" title="Reset to default 3-line sample">↺ Reset Sample</span>
+                  </div>
+                  <input type="text" id="demo-caption-input" class="form-input" placeholder="Type custom sample text to preview on stage..." value="WAIT... DID HE REALLY GET AN UNFAIR ADVANTAGE?! WATCH THIS INSANE MOMENT!" oninput="onDemoCaptionTextInput(this.value)">
                 </div>
 
                 <!-- Caption Font Family Override (3rd Row) -->
@@ -922,6 +961,6 @@
 
   </div>
 
-  <script src="/static/app.js?v=2.2.7"></script>
+  <script src="/static/app.js?v=2.2.8"></script>
 </body>
 </html>

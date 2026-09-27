@@ -366,6 +366,7 @@ body {
   position: relative;
   overflow: hidden;
   background: #060911;
+  container-type: inline-size;
 }
 
 /* Layer 1: Twitch Gameplay Background */
@@ -668,7 +669,7 @@ body {
   width: 100%;
   line-height: 1.25;
   font-family: Montserrat, Impact, "Arial Black", sans-serif;
-  font-size: 2.3vw;
+  font-size: calc(var(--caption-fs-1080, 115) / 1920 * 100cqi);
   font-weight: 900;
   letter-spacing: 0.02em;
   color: #ffffff;
@@ -676,6 +677,13 @@ body {
   pointer-events: none;
   word-break: break-word;
   transition: font-size 0.2s ease;
+}
+
+.demo-line {
+  display: block;
+  margin: 3px 0;
+  text-align: center;
+  line-height: 1.22;
 }
 
 .demo-word {

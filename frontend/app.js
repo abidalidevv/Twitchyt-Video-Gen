@@ -34,7 +34,9 @@ const STATE = {
   captionPreset: 'capcut_yellow',
   captionPosition: 'bottom',
   captionSize: 'large',
+  captionCustomSize: 150,
   captionFontFamily: 'default',
+  demoCaptionText: 'WAIT... DID HE REALLY GET AN UNFAIR ADVANTAGE?! WATCH THIS INSANE MOMENT!',
   enableCaptionBg: false,
   captionBgColor: '#000000',
   captionBgOpacity: 75,
@@ -75,6 +77,16 @@ const CAPTION_PRESETS = {
 };
 
 // Utilities
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 function formatDuration(seconds) {
   if (!seconds || isNaN(seconds)) return '00:00:00';
   const s = Math.floor(seconds);
@@ -535,9 +547,23 @@ function syncStage() {
       w.style.textShadow = `0 0 16px ${pal.glow}, 2px 2px 0 #000, -2px -2px 0 #000`;
     });
 
-    // Font size
-    const sizes = { medium: '2.0vw', large: '2.5vw', huge: '3.1vw' };
-    captionContent.style.fontSize = sizes[STATE.captionSize] || '2.5vw';
+    captionContent.querySelectorAll('.demo-word:not(.active)').forEach(w => {
+      w.style.color = pal.base;
+      w.style.textShadow = '2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000';
+    });
+
+    // Font size: exact 1080p calculation with container query support
+    let fs1080 = 115;
+    if (STATE.captionSize === 'small') fs1080 = 80;
+    else if (STATE.captionSize === 'medium') fs1080 = 95;
+    else if (STATE.captionSize === 'large') fs1080 = 115;
+    else if (STATE.captionSize === 'huge') fs1080 = 135;
+    else if (STATE.captionSize === 'extrahuge') fs1080 = 160;
+    else if (STATE.captionSize === 'custom') fs1080 = parseInt(STATE.captionCustomSize) || 150;
+    else if (!isNaN(Number(STATE.captionSize))) fs1080 = Number(STATE.captionSize);
+
+    captionContent.style.setProperty('--caption-fs-1080', `${fs1080}`);
+    captionContent.style.fontSize = `calc(var(--caption-fs-1080, ${fs1080}) / 1920 * 100cqi)`;
 
     // Caption Background Box (Custom rounded backdrop box)
     if (STATE.enableCaptionBg) {
@@ -705,7 +731,157 @@ window.setCaptionPresetPos = function(pos) {
 
 window.setCaptionSize = function(size) {
   STATE.captionSize = size;
+  const select = document.getElementById('caption-font-size-select');
+  if (select) {
+    if (['small', 'medium', 'large', 'huge', 'extrahuge'].includes(size)) {
+      select.value = size;
+    } else {
+      select.value = 'custom';
+      STATE.captionCustomSize = parseInt(size) || 150;
+    }
+  }
+  const customRow = document.getElementById('custom-font-size-row');
+  if (customRow) {
+    customRow.classList.toggle('hidden', STATE.captionSize !== 'custom');
+  }
+  updateCaptionSizeBadge();
   syncStage();
+};
+
+window.onCaptionSizeSelect = function(val) {
+  STATE.captionSize = val;
+  const customRow = document.getElementById('custom-font-size-row');
+  if (customRow) {
+    customRow.classList.toggle('hidden', val !== 'custom');
+  }
+  if (val === 'custom') {
+    const slider = document.getElementById('custom-font-size-slider');
+    STATE.captionCustomSize = parseInt(slider?.value) || 150;
+  }
+  updateCaptionSizeBadge();
+  syncStage();
+  const labelMap = {
+    small: 'Small (80px)',
+    medium: 'Medium (95px)',
+    large: 'Large (115px)',
+    huge: 'Huge (135px)',
+    extrahuge: '💥 Extra Huge (160px)',
+    custom: `Custom (${STATE.captionCustomSize || 150}px)`
+  };
+  showToast(`Caption font size: ${labelMap[val] || val}`, 'info');
+};
+
+window.onCustomFontSizeInput = function(val) {
+  const num = Math.max(40, Math.min(220, parseInt(val) || 150));
+  STATE.captionCustomSize = num;
+  STATE.captionSize = 'custom';
+  const slider = document.getElementById('custom-font-size-slider');
+  const numberInput = document.getElementById('custom-font-size-number');
+  const customBadge = document.getElementById('custom-font-size-badge');
+  const sizeBadge = document.getElementById('caption-font-size-badge');
+
+  if (slider && slider.value != num) slider.value = num;
+  if (numberInput && numberInput.value != num) numberInput.value = num;
+  if (customBadge) customBadge.textContent = `${num}px`;
+  if (sizeBadge) sizeBadge.textContent = `Custom (${num}px)`;
+
+  syncStage();
+};
+
+function updateCaptionSizeBadge() {
+  const badge = document.getElementById('caption-font-size-badge');
+  if (!badge) return;
+  const size = STATE.captionSize;
+  const map = {
+    small: 'Small (80px)',
+    medium: 'Medium (95px)',
+    large: 'Large (115px)',
+    huge: 'Huge (135px)',
+    extrahuge: '💥 Extra Huge (160px)',
+    custom: `Custom (${STATE.captionCustomSize || 150}px)`
+  };
+  badge.textContent = map[size] || `${size}px`;
+}
+
+// Live Preview Caption Text Renderer
+window.renderDemoCaptionHtml = function(rawText) {
+  const captionContent = document.getElementById('stage-caption-content');
+  if (!captionContent) return;
+  const text = (rawText || '').trim();
+  if (!text) {
+    captionContent.innerHTML = `
+      <div class="demo-line" data-line="0">
+        <span class="demo-word" data-w="0">WAIT...</span>
+        <span class="demo-word" data-w="1">DID</span>
+        <span class="demo-word" data-w="2">HE</span>
+        <span class="demo-word" data-w="3">REALLY</span>
+      </div>
+      <div class="demo-line" data-line="1">
+        <span class="demo-word" data-w="4">GET</span>
+        <span class="demo-word" data-w="5">AN</span>
+        <span class="demo-word active" data-w="6">UNFAIR</span>
+        <span class="demo-word active" data-w="7">ADVANTAGE?!</span>
+      </div>
+      <div class="demo-line" data-line="2">
+        <span class="demo-word" data-w="8">WATCH</span>
+        <span class="demo-word" data-w="9">THIS</span>
+        <span class="demo-word active" data-w="10">INSANE</span>
+        <span class="demo-word" data-w="11">MOMENT!</span>
+      </div>
+    `;
+    return;
+  }
+
+  // Split into lines (either newline or 4-5 words per line)
+  const lines = [];
+  if (text.includes('\n')) {
+    text.split('\n').forEach(l => {
+      if (l.trim()) lines.push(l.trim().split(/\s+/));
+    });
+  } else {
+    const words = text.split(/\s+/);
+    let cur = [];
+    words.forEach(w => {
+      cur.push(w);
+      if (cur.length >= 4) {
+        lines.push(cur);
+        cur = [];
+      }
+    });
+    if (cur.length > 0) lines.push(cur);
+  }
+
+  let wordIndex = 0;
+  let html = '';
+  lines.forEach((lineWords, lineIdx) => {
+    html += `<div class="demo-line" data-line="${lineIdx}">`;
+    lineWords.forEach((word) => {
+      const cleanWord = escapeHtml(word);
+      const isEmphasis = /[!?]$/.test(word) || (word === word.toUpperCase() && word.length > 3) || (wordIndex % 4 === 2);
+      const activeClass = isEmphasis ? ' active' : '';
+      html += `<span class="demo-word${activeClass}" data-w="${wordIndex}">${cleanWord}</span>\n`;
+      wordIndex++;
+    });
+    html += `</div>\n`;
+  });
+
+  captionContent.innerHTML = html;
+};
+
+window.onDemoCaptionTextInput = function(text) {
+  STATE.demoCaptionText = text;
+  renderDemoCaptionHtml(text);
+  syncStage();
+};
+
+window.resetDemoCaptionText = function() {
+  const defaultText = "WAIT... DID HE REALLY GET AN UNFAIR ADVANTAGE?! WATCH THIS INSANE MOMENT!";
+  STATE.demoCaptionText = defaultText;
+  const input = document.getElementById('demo-caption-input');
+  if (input) input.value = defaultText;
+  renderDemoCaptionHtml(defaultText);
+  syncStage();
+  showToast('Live preview caption text reset to default 3-line sample.', 'info');
 };
 
 window.onCaptionFontFamilyChange = function(val) {
@@ -1171,7 +1347,7 @@ function collectPayload(isPreview = false) {
     enable_captions: STATE.enableCaptions,
     caption_preset: STATE.captionPreset,
     caption_font_family: STATE.captionFontFamily || 'default',
-    caption_size: STATE.captionSize || 'large',
+    caption_size: (STATE.captionSize === 'custom' ? (STATE.captionCustomSize || 150).toString() : (STATE.captionSize || 'large')),
     enable_caption_bg: !!STATE.enableCaptionBg,
     caption_bg_color: STATE.captionBgColor || '#000000',
     caption_bg_opacity: STATE.captionBgOpacity !== undefined ? STATE.captionBgOpacity : 75,

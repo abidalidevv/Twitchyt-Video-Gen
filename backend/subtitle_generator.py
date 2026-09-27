@@ -382,19 +382,28 @@ def create_ass_subtitles(
     font_name = resolve_ass_font_name(font_family, style["font_name"])
 
     # ── Font size: Viral Scale with Strict Box Boundary Containment ───────────────
-    # Default large is 115px (comfortably fits 2-3 lines within user-drawn box)
-    size_map = {"small": 80, "medium": 95, "large": 115, "huge": 135}
-    base_fs = size_map.get(caption_size, 115)
+    size_map = {
+        "small": 80,
+        "medium": 95,
+        "large": 115,
+        "huge": 135,
+        "extrahuge": 160,
+        "extra_huge": 160,
+        "extra huge": 160
+    }
+    raw_size_str = str(caption_size or "large").strip().lower()
+    if raw_size_str.isdigit():
+        base_fs = max(40, min(240, int(raw_size_str)))
+    else:
+        base_fs = size_map.get(raw_size_str, 115)
 
     # Dynamic scaling based on custom bounding box (maintaining large readability without spillage)
     if custom_w is not None and custom_h is not None:
         box_w = float(custom_w)
         box_h = float(custom_h)
-        # Guarantee 2-line captions stay strictly inside bounding box with safe padding
-        max_fs_by_h = (box_h * 0.82) / (2.0 * 1.25)
-        max_fs_by_w = (box_w * 0.90) / (14.0 * 0.60)
-        capped_fs = min(max_fs_by_h, max_fs_by_w)
-        ass_font_size = int(min(base_fs, max(45, capped_fs)))
+        # Cap default header font size by single-line box limit, letting multi-line cues clamp individually
+        max_single_line_h = (box_h * 0.90) / 1.18
+        ass_font_size = int(min(base_fs, max(45, max_single_line_h)))
     else:
         box_w = 1152.0
         box_h = 240.0
@@ -469,8 +478,8 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     chunks = group_words_into_phrases(shifted_words, max_words=words_per_group or 3)
 
     # Calculate line wrapping limits based on box width and font size
-    line_char_limit = max(8, int((box_w * 0.88) / (ass_font_size * 0.60)))
-    max_words_per_line = 2 if box_w < 700 else (3 if box_w < 1100 else 4)
+    line_char_limit = max(8, int((box_w * 0.90) / (ass_font_size * 0.48)))
+    max_words_per_line = 3 if box_w < 700 else (4 if box_w < 1100 else 6)
 
     # Build raw cues with intelligent multi-line \N wrapping
     raw_cues = []
@@ -500,9 +509,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             sum(len(str(chunk[idx].get("word", "")).strip()) for idx in l_idx) + len(l_idx) - 1
             for l_idx in chunk_lines
         )
-        chunk_max_h = int((box_h * 0.84) / (num_chunk_lines * 1.25))
-        chunk_max_w = int((box_w * 0.90) / (max(1, max_chunk_chars) * 0.60))
-        cue_fs = min(ass_font_size, chunk_max_h, chunk_max_w)
+        chunk_max_h = int((box_h * 0.92) / (num_chunk_lines * 1.15))
+        chunk_max_w = int((box_w * 0.96) / (max(1, max_chunk_chars) * 0.52))
+        cue_fs = min(ass_font_size, max(40, chunk_max_h), max(40, chunk_max_w))
         fs_override_tag = f"\\fs{cue_fs}" if cue_fs < ass_font_size else ""
 
         for active_idx, active_word in enumerate(chunk):

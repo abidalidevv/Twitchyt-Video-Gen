@@ -1558,11 +1558,14 @@ function initSliceModal() {
           // Minimized pill status is centrally handled by updatePillMonitor with 3.8s calm cycling
         } else if (task.status === 'COMPLETED' || task.status === 'DONE') {
           clearInterval(pollInterval);
-          if (statusText) statusText.textContent = 'Render Complete! 30s preview playing below:';
-          if (pill) {
-            pill.classList.add('pill-done');
-            if (pillLabel) pillLabel.innerHTML = '<i class="fas fa-check-circle" style="color:var(--accent-green)"></i> Slice Ready! Click to view';
+          if (modal) {
+            modal.classList.remove('hidden');
           }
+          if (pill) {
+            pill.classList.add('hidden');
+            pill.classList.remove('pill-done');
+          }
+          if (statusText) statusText.textContent = 'Render Complete! 30s preview playing below:';
           if (player) {
             const filename = task.output_path.split('\\').pop();
             player.src = `/outputs/${encodeURIComponent(filename)}`;

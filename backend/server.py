@@ -1,8 +1,25 @@
 import os
+import sys
 import shutil
 import uuid
 from pathlib import Path
 from typing import Dict, Any, Optional, List, Union
+
+# Suppress benign Windows asyncio ConnectionResetError [WinError 10054]
+if sys.platform == "win32":
+    try:
+        from asyncio.proactor_events import _ProactorBasePipeTransport
+        _orig_call_connection_lost = _ProactorBasePipeTransport._call_connection_lost
+
+        def _silent_call_connection_lost(self, exc=None):
+            try:
+                _orig_call_connection_lost(self, exc)
+            except (ConnectionResetError, OSError):
+                pass
+
+        _ProactorBasePipeTransport._call_connection_lost = _silent_call_connection_lost
+    except Exception:
+        pass
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.exceptions import RequestValidationError

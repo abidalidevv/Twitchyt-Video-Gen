@@ -3,6 +3,7 @@ StreamMix Studio — Subtitle Generator
 VG-reference ASS engine with neon glow, kinetic word bounce, and exact preview parity.
 """
 import os
+import re
 import json
 import time
 from pathlib import Path
@@ -353,6 +354,18 @@ def group_words_into_phrases(words: List[Dict[str, Any]], max_words: int = 5) ->
     return phrases
 
 
+def sanitize_subtitle_word(word_str: str) -> str:
+    """
+    Removes invisible zero-width characters and BPE tokenizer artifacts that cause dotted circle/tofu symbols.
+    """
+    if not word_str:
+        return ""
+    # Strip zero-width space (\u200b), non-joiner (\u200c), joiner (\u200d), directional markers (\u200e/\u200f),
+    # Byte Order Mark (\ufeff), replacement characters (\ufffd), and tokenizer symbols (Ġ \u0120,   \u2581)
+    cleaned = re.sub(r'[\u200b\u200c\u200d\u200e\u200f\ufeff\ufffd\u0120\u2581]', '', str(word_str))
+    return cleaned.replace('\u00a0', ' ').strip()
+
+
 def create_ass_subtitles(
     words: List[Dict[str, Any]],
     preset_key: str = "capcut_yellow",
@@ -372,14 +385,35 @@ def create_ass_subtitles(
     Key improvements:
     - 1:1 Color & Font match with frontend preview templates
     - Accurate visual font size (matches CSS 2.5vw = ~48-56px)
+    - Multilingual & Indic Script Safe: zero letter spacing to prevent combining matra dotted circles (◌)
     - Dynamic multi-line wrapping (\\N) so words strictly stay inside the box
     - Neon glow via \\blur + colored shadow
     - Kinetic word bounce: \\fscx108\\fscy108\\b1 on active word
     - Centered bounding box positioning (custom_x/y/w/h from live canvas drag)
     - VG-style zero-overlap cue resolver
     """
+    # Detect non-Latin scripts (Devanagari/Indic, Urdu/Arabic) to ensure correct font and letter-spacing
+    has_indic = any(
+        any('\u0900' <= char <= '\u097f' or '\u0a00' <= char <= '\u0d7f' for char in str(w.get("word", "")))
+        for w in words
+    )
+    has_arabic_urdu = any(
+        any('\u0600' <= char <= '\u06ff' or '\u0750' <= char <= '\u077f' for char in str(w.get("word", "")))
+        for w in words
+    )
+
     style = PRESET_STYLES.get(preset_key, PRESET_STYLES["capcut_yellow"])
-    font_name = resolve_ass_font_name(font_family, style["font_name"])
+    if has_indic and (not font_family or str(font_family).lower() in ("default", "none", "")):
+        font_name = "Nirmala UI"
+    elif has_arabic_urdu and (not font_family or str(font_family).lower() in ("default", "none", "")):
+        font_name = "Segoe UI"
+    else:
+        font_name = resolve_ass_font_name(font_family, style["font_name"])
+
+    # For Indic and Arabic scripts, letter spacing MUST be 0.0, otherwise combining matras
+    # get detached from consonants and render as dotted circle symbols (◌).
+    letter_spacing = 0.0 if (has_indic or has_arabic_urdu) else 2.5
+    uppercase = False if (has_indic or has_arabic_urdu) else style.get("uppercase", True)
 
     # ── Font size: Viral Scale with Strict Box Boundary Containment ───────────────
     size_map = {
@@ -454,19 +488,19 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,{font_name},{ass_font_size},{primary_c},&H000000FF,{outline_c},{shadow_c},{bold},0,0,0,100,100,2.5,0,1,{ass_outline_w:.1f},{ass_shadow_d:.1f},2,50,50,120,1
+Style: Default,{font_name},{ass_font_size},{primary_c},&H000000FF,{outline_c},{shadow_c},{bold},0,0,0,100,100,{letter_spacing:.1f},0,1,{ass_outline_w:.1f},{ass_shadow_d:.1f},2,50,50,120,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
     events = []
 
-    # Shift words by start_offset
+    # Shift and sanitize words by start_offset
     shifted_words = []
     for w in words:
         st = float(w.get("start", 0.0)) - start_offset
         et = float(w.get("end", 0.0)) - start_offset
-        txt = str(w.get("word", "")).strip()
+        txt = sanitize_subtitle_word(str(w.get("word", "")))
         if et > 0 and txt:
             shifted_words.append({
                 "start": max(0.0, st),
@@ -523,7 +557,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             for line_indices in chunk_lines:
                 line_words = []
                 for idx in line_indices:
-                    raw_w = str(chunk[idx].get("word", "")).strip().replace("{", "(").replace("}", ")")
+                    raw_w = sanitize_subtitle_word(str(chunk[idx].get("word", ""))).replace("{", "(").replace("}", ")")
                     if idx == active_idx:
                         # Kinetic pop: highlight color + punchy scale bounce + keep glow blur
                         line_words.append(

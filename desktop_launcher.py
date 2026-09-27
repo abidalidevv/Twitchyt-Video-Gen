@@ -12,6 +12,23 @@ import threading
 import urllib.request
 import webbrowser
 
+# Suppress benign Windows asyncio ConnectionResetError [WinError 10054]
+if sys.platform == "win32":
+    import asyncio
+    try:
+        from asyncio.proactor_events import _ProactorBasePipeTransport
+        _orig_call_connection_lost = _ProactorBasePipeTransport._call_connection_lost
+
+        def _silent_call_connection_lost(self, exc=None):
+            try:
+                _orig_call_connection_lost(self, exc)
+            except (ConnectionResetError, OSError):
+                pass
+
+        _ProactorBasePipeTransport._call_connection_lost = _silent_call_connection_lost
+    except Exception:
+        pass
+
 PORT = 8899
 HOST = "127.0.0.1"
 BASE_URL = f"http://{HOST}:{PORT}"
@@ -39,7 +56,22 @@ def kill_process_on_port(port: int):
 
 def run_server():
     import uvicorn
+    import asyncio
     from backend.server import app
+
+    if sys.platform == "win32":
+        try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            def _loop_exception_handler(loop, context):
+                exc = context.get("exception")
+                if isinstance(exc, (ConnectionResetError, ConnectionAbortedError)):
+                    return
+                loop.default_exception_handler(context)
+            loop.set_exception_handler(_loop_exception_handler)
+        except Exception:
+            pass
+
     uvicorn.run(app, host=HOST, port=PORT, log_level="warning")
 
 def wait_for_server(timeout=15):

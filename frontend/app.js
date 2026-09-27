@@ -1025,14 +1025,14 @@ function initReactionControls() {
 
   const updateYtLayerVisuals = () => {
     const blur = parseInt(ytBlur?.value || '0') || 0;
-    const opacityPct = parseInt(ytOpacity?.value || '75') || 75;
+    const opacityPct = parseInt(ytOpacity?.value || '35') || 35;
     const opacity = opacityPct / 100;
 
     if (ytBlurVal) ytBlurVal.textContent = `${blur}px`;
     if (hudYtBlurPill) hudYtBlurPill.textContent = `YT Blur: ${blur}px`;
 
     if (ytOpacityVal) {
-      ytOpacityVal.textContent = `${opacityPct}% ${opacityPct >= 75 ? '(Clear Reaction)' : opacityPct >= 50 ? '(Balanced)' : '(Subtle)'}`;
+      ytOpacityVal.textContent = `${opacityPct}% ${opacityPct >= 75 ? '(Clear Reaction)' : opacityPct >= 50 ? '(Balanced)' : '(Subtle Overlay)'}`;
     }
     if (hudOpacityPill) hudOpacityPill.textContent = `YT: ${opacityPct}%`;
 
@@ -1143,7 +1143,7 @@ function collectPayload(isPreview = false) {
     yt_end_sec: ytEndSec,
     bg_blur: parseInt(document.getElementById('bg-blur')?.value) || 0,
     yt_blur: parseInt(document.getElementById('yt-blur')?.value) || 0,
-    yt_opacity: parseInt(document.getElementById('yt-opacity')?.value) || 75,
+    yt_opacity: parseInt(document.getElementById('yt-opacity')?.value) || 35,
     audio_speed: parseFloat(document.getElementById('audio-speed')?.value) || 1.0,
     pitch_semitones: parseFloat(document.getElementById('pitch-semitones')?.value) || (document.getElementById('acoustic-shield')?.checked ? 0.6 : 0.0),
     bitrate_mode: document.getElementById('bitrate-mode')?.value || "6500k",
@@ -1215,6 +1215,73 @@ function initSliceModal() {
       player.pause();
     }
   });
+
+  // Make Minimized Slice Pill Moveable Anywhere on Screen
+  if (pill) {
+    let isDraggingPill = false;
+    let pillStartX = 0;
+    let pillStartY = 0;
+    let pointerStartX = 0;
+    let pointerStartY = 0;
+    let pillMoved = false;
+
+    pill.addEventListener('pointerdown', (e) => {
+      if (e.button && e.button !== 0) return;
+      isDraggingPill = true;
+      pillMoved = false;
+      pointerStartX = e.clientX;
+      pointerStartY = e.clientY;
+
+      const rect = pill.getBoundingClientRect();
+      pillStartX = rect.left;
+      pillStartY = rect.top;
+
+      try { pill.setPointerCapture(e.pointerId); } catch (_) {}
+      pill.classList.add('dragging');
+    });
+
+    window.addEventListener('pointermove', (e) => {
+      if (!isDraggingPill) return;
+      const dx = e.clientX - pointerStartX;
+      const dy = e.clientY - pointerStartY;
+
+      if (!pillMoved && (Math.abs(dx) > 4 || Math.abs(dy) > 4)) {
+        pillMoved = true;
+      }
+
+      if (pillMoved) {
+        let newX = pillStartX + dx;
+        let newY = pillStartY + dy;
+
+        const maxW = window.innerWidth - pill.offsetWidth - 12;
+        const maxH = window.innerHeight - pill.offsetHeight - 12;
+
+        newX = Math.max(12, Math.min(maxW, newX));
+        newY = Math.max(12, Math.min(maxH, newY));
+
+        pill.style.position = 'fixed';
+        pill.style.left = `${newX}px`;
+        pill.style.top = `${newY}px`;
+        pill.style.right = 'auto';
+        pill.style.bottom = 'auto';
+      }
+    });
+
+    const finishPillDrag = (e) => {
+      if (!isDraggingPill) return;
+      isDraggingPill = false;
+      pill.classList.remove('dragging');
+      try { pill.releasePointerCapture(e.pointerId); } catch (_) {}
+
+      // If user merely clicked without dragging, restore modal
+      if (!pillMoved) {
+        window.restoreSliceModal();
+      }
+    };
+
+    pill.addEventListener('pointerup', finishPillDrag);
+    pill.addEventListener('pointercancel', finishPillDrag);
+  }
 
   btnQuickTest?.addEventListener('click', async () => {
     const payload = collectPayload(true);
@@ -1446,6 +1513,21 @@ window.cancelTask = async function(taskId) {
     }
   } catch (err) {
     showToast(`Cancel failed: ${err.message}`, 'error');
+  }
+};
+
+window.clearFinishedTasks = async function() {
+  try {
+    const res = await fetch('/api/tasks/clear-completed', { method: 'POST' });
+    if (res.ok) {
+      const data = await res.json();
+      showToast(`Cleaned up ${data.cleared_count || 0} completed/cancelled task(s).`, 'success');
+      await fetchTasks();
+    } else {
+      showToast('Could not clear tasks.', 'error');
+    }
+  } catch (err) {
+    showToast(`Clear error: ${err.message}`, 'error');
   }
 };
 

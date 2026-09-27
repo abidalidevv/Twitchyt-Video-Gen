@@ -86,7 +86,7 @@ DEFAULT_SETTINGS: Dict[str, Any] = {
     "resolution": "1920x1080",
     "fps": 60,
     "default_bg_blur": 18,
-    "default_yt_opacity": 70,
+    "default_yt_opacity": 35,
     "default_audio_speed": 1.0,
     "default_pitch_semitones": 0.0,
     "default_bgm_volume": 0.07,

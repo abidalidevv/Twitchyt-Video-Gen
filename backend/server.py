@@ -256,7 +256,7 @@ class RenderTaskRequest(BaseModel):
     yt_end_sec: Optional[float] = None
     bg_blur: Optional[Union[float, int]] = 18.0
     yt_blur: Optional[Union[float, int]] = 18.0
-    yt_opacity: Optional[Union[float, int]] = 70
+    yt_opacity: Optional[Union[float, int]] = 35
     audio_speed: Optional[float] = 1.0
     pitch_semitones: Optional[float] = 0.0
     copyright_shield: Optional[bool] = True
@@ -343,6 +343,12 @@ async def api_get_task(task_id: str):
 async def api_cancel_task(task_id: str):
     cancelled = task_manager.cancel_task(task_id)
     return {"success": cancelled}
+
+
+@app.post("/api/tasks/clear-completed")
+async def api_clear_completed_tasks():
+    cleared = task_manager.clear_finished_tasks()
+    return {"success": True, "cleared_count": cleared}
 
 
 @app.post("/api/tasks/open-folder")

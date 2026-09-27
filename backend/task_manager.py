@@ -239,6 +239,16 @@ class StreamMixTaskManager:
             return True
         return False
 
+    def clear_finished_tasks(self) -> int:
+        """Removes all finished (completed, cancelled, failed) tasks, keeping active and queued."""
+        to_delete = [
+            tid for tid, t in self.tasks.items()
+            if t.get("status") in ("COMPLETED", "DONE", "CANCELLED", "FAILED")
+        ]
+        for tid in to_delete:
+            del self.tasks[tid]
+        return len(to_delete)
+
     def get_task(self, task_id: str) -> Optional[Dict[str, Any]]:
         return self.tasks.get(task_id)
 

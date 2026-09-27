@@ -317,9 +317,9 @@
                   <div class="half-field">
                     <div class="slider-label-row">
                       <label class="slider-label"><i class="fas fa-adjust"></i> Reaction Opacity</label>
-                      <span class="slider-value-badge" id="yt-opacity-val">75% (Clear Reaction)</span>
+                      <span class="slider-value-badge" id="yt-opacity-val">35% (Subtle Overlay)</span>
                     </div>
-                    <input type="range" id="yt-opacity" min="10" max="100" value="75" class="range-slider">
+                    <input type="range" id="yt-opacity" min="10" max="100" value="35" class="range-slider">
                   </div>
                 </div>
 
@@ -852,9 +852,14 @@
           <i class="fas fa-tasks text-primary"></i>
           <span>Render Queue & Active Tasks</span>
         </div>
-        <button id="btnCloseDrawer" class="btn-close-drawer" title="Close Drawer">
-          <i class="fas fa-times"></i>
-        </button>
+        <div class="drawer-header-actions" style="display: flex; align-items: center; gap: 8px;">
+          <button id="btnClearFinishedTasks" class="btn-clear-recent" onclick="clearFinishedTasks()" title="Clear Completed and Cancelled Projects">
+            <i class="fas fa-broom"></i> Clear Recent
+          </button>
+          <button id="btnCloseDrawer" class="btn-close-drawer" title="Close Drawer">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
       </div>
 
       <div class="drawer-body" id="drawerTaskBody">
@@ -888,8 +893,9 @@
       </div>
     </div>
 
-    <!-- FLOATING MINIMIZED TASK PILL (Bottom right) -->
-    <div id="minimized-slice-pill" class="floating-task-pill hidden" onclick="restoreSliceModal()" title="Click to view live preview player">
+    <!-- FLOATING MINIMIZED TASK PILL (Moveable anywhere on screen) -->
+    <div id="minimized-slice-pill" class="floating-task-pill hidden" title="Drag to reposition, Click to view live preview player">
+      <span class="pill-drag-handle" title="Drag to move"><i class="fas fa-grip-vertical"></i></span>
       <span class="pulsing-dot"></span>
       <span id="minimized-slice-label"><i class="fas fa-bolt text-accent"></i> Fast Slice in progress...</span>
       <span style="opacity: 0.6; font-size: 11px; margin-left: 4px;"><i class="fas fa-expand-alt"></i></span>

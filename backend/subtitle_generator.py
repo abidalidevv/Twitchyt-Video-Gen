@@ -351,28 +351,28 @@ def create_ass_subtitles(
     if font_family and str(font_family).strip() and str(font_family).strip().lower() != "default":
         font_name = str(font_family).strip()
 
-    # ── Font size: Exact scale parity with preview canvas (Large, Bold & Punchy) ──
-    size_map = {"small": 72, "medium": 84, "large": 96, "huge": 115}
-    base_fs = size_map.get(caption_size, 96)
+    # ── Font size: 2x Viral Scale Matching Director Preview Canvas (145px Large) ──
+    size_map = {"small": 105, "medium": 125, "large": 145, "huge": 175}
+    base_fs = size_map.get(caption_size, 145)
 
     # Dynamic scaling based on custom bounding box (maintaining large readability)
     if custom_w is not None and custom_h is not None:
         box_w = float(custom_w)
         box_h = float(custom_h)
-        # Allow 2-3 lines stacked with comfortable vertical line spacing
-        max_fs_by_h = box_h / 2.2
-        max_fs_by_w = box_w / 7.0
+        # Allow 3-4 stacked lines with comfortable vertical line spacing
+        max_fs_by_h = box_h / 2.8
+        max_fs_by_w = box_w / 5.5
         capped_fs = min(max_fs_by_h, max_fs_by_w)
-        ass_font_size = int(min(base_fs, max(68, capped_fs)))
+        ass_font_size = int(min(base_fs, max(95, capped_fs)))
     else:
         box_w = 1152.0
         box_h = 240.0
         ass_font_size = base_fs
 
-    # ── Outline & Shadow (Proportional to 96px viral typography) ───────────
-    ass_outline_w = round(max(4.2, style.get("outline_width", 3.8) * 1.2), 1)
-    ass_shadow_d  = round(max(3.2, style.get("shadow_dist", 2.8) * 1.2), 1)
-    glow_blur     = max(10, style.get("glow_blur", 8))
+    # ── Outline & Shadow (Proportional to 145px viral typography) ───────────
+    ass_outline_w = round(max(5.2, style.get("outline_width", 3.8) * 1.4), 1)
+    ass_shadow_d  = round(max(3.8, style.get("shadow_dist", 2.8) * 1.4), 1)
+    glow_blur     = max(12, style.get("glow_blur", 8))
 
     primary_c   = style["primary_color"]
     highlight_c = style["highlight_color"]
@@ -414,7 +414,7 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,{font_name},{ass_font_size},{primary_c},&H000000FF,{outline_c},{shadow_c},{bold},0,0,0,100,100,1.2,0,1,{ass_outline_w:.1f},{ass_shadow_d:.1f},2,50,50,120,1
+Style: Default,{font_name},{ass_font_size},{primary_c},&H000000FF,{outline_c},{shadow_c},{bold},0,0,0,100,100,3.2,0,1,{ass_outline_w:.1f},{ass_shadow_d:.1f},2,50,50,120,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -434,12 +434,12 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 "word":  txt.upper() if uppercase else txt
             })
 
-    chunks = group_words_into_phrases(shifted_words, max_words=words_per_group or 5)
+    chunks = group_words_into_phrases(shifted_words, max_words=words_per_group or 4)
 
     # Calculate line wrapping limits based on box width and font size
-    # In bold fonts, average char width is ~0.58 * font_size
-    line_char_limit = max(8, int((box_w * 0.90) / (ass_font_size * 0.58)))
-    max_words_per_line = 2 if box_w < 650 else (3 if box_w < 1000 else 4)
+    # At 145px font size, average char width is ~0.58 * font_size
+    line_char_limit = max(7, int((box_w * 0.90) / (ass_font_size * 0.58)))
+    max_words_per_line = 2 if box_w < 700 else (3 if box_w < 1100 else 4)
 
     # Build raw cues with intelligent multi-line \N wrapping
     raw_cues = []
@@ -476,7 +476,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                     if idx == active_idx:
                         # Kinetic pop: highlight color + punchy scale bounce + keep glow blur
                         line_words.append(
-                            f"{{\\c{highlight_c}&{blur_tag}\\fscx122\\fscy122\\b1}}{raw_w}"
+                            f"{{\\c{highlight_c}&{blur_tag}\\fscx126\\fscy126\\b1}}{raw_w}"
                             f"{{\\c{primary_c}&\\fscx100\\fscy100\\b{bold}}}"
                         )
                     else:

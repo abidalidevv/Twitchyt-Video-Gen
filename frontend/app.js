@@ -1216,7 +1216,7 @@ function initSliceModal() {
     }
   });
 
-  // Make Minimized Slice Pill Moveable Anywhere on Screen
+  // Make Minimized Slice / Render Pill Moveable Anywhere on Screen
   if (pill) {
     let isDraggingPill = false;
     let pillStartX = 0;
@@ -1236,51 +1236,69 @@ function initSliceModal() {
       pillStartX = rect.left;
       pillStartY = rect.top;
 
-      try { pill.setPointerCapture(e.pointerId); } catch (_) {}
       pill.classList.add('dragging');
+
+      const onMove = (me) => {
+        if (!isDraggingPill) return;
+        const dx = me.clientX - pointerStartX;
+        const dy = me.clientY - pointerStartY;
+
+        if (!pillMoved && (Math.abs(dx) > 3 || Math.abs(dy) > 3)) {
+          pillMoved = true;
+        }
+
+        if (pillMoved) {
+          me.preventDefault();
+          let newX = pillStartX + dx;
+          let newY = pillStartY + dy;
+
+          const maxW = window.innerWidth - pill.offsetWidth - 8;
+          const maxH = window.innerHeight - pill.offsetHeight - 8;
+
+          newX = Math.max(8, Math.min(maxW, newX));
+          newY = Math.max(8, Math.min(maxH, newY));
+
+          pill.style.position = 'fixed';
+          pill.style.left = `${newX}px`;
+          pill.style.top = `${newY}px`;
+          pill.style.right = 'auto';
+          pill.style.bottom = 'auto';
+        }
+      };
+
+      const onUp = () => {
+        isDraggingPill = false;
+        pill.classList.remove('dragging');
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onUp);
+        window.removeEventListener('pointercancel', onUp);
+
+        // Pure click (did not drag): handle modal or drawer restore
+        if (!pillMoved) {
+          handlePillClick();
+        }
+      };
+
+      window.addEventListener('pointermove', onMove, { passive: false });
+      window.addEventListener('pointerup', onUp);
+      window.addEventListener('pointercancel', onUp);
     });
+  }
 
-    window.addEventListener('pointermove', (e) => {
-      if (!isDraggingPill) return;
-      const dx = e.clientX - pointerStartX;
-      const dy = e.clientY - pointerStartY;
-
-      if (!pillMoved && (Math.abs(dx) > 4 || Math.abs(dy) > 4)) {
-        pillMoved = true;
+  function handlePillClick() {
+    const modal = document.getElementById('modal-slice-test');
+    const player = document.getElementById('slice-video-player');
+    if (player && player.src && player.src.includes('/outputs/') && modal && modal.classList.contains('hidden')) {
+      modal.classList.remove('hidden');
+      player.play();
+    } else {
+      const drawer = document.getElementById('taskDrawer');
+      if (drawer && drawer.classList.contains('open')) {
+        drawer.classList.remove('open');
+      } else {
+        openDrawer();
       }
-
-      if (pillMoved) {
-        let newX = pillStartX + dx;
-        let newY = pillStartY + dy;
-
-        const maxW = window.innerWidth - pill.offsetWidth - 12;
-        const maxH = window.innerHeight - pill.offsetHeight - 12;
-
-        newX = Math.max(12, Math.min(maxW, newX));
-        newY = Math.max(12, Math.min(maxH, newY));
-
-        pill.style.position = 'fixed';
-        pill.style.left = `${newX}px`;
-        pill.style.top = `${newY}px`;
-        pill.style.right = 'auto';
-        pill.style.bottom = 'auto';
-      }
-    });
-
-    const finishPillDrag = (e) => {
-      if (!isDraggingPill) return;
-      isDraggingPill = false;
-      pill.classList.remove('dragging');
-      try { pill.releasePointerCapture(e.pointerId); } catch (_) {}
-
-      // If user merely clicked without dragging, restore modal
-      if (!pillMoved) {
-        window.restoreSliceModal();
-      }
-    };
-
-    pill.addEventListener('pointerup', finishPillDrag);
-    pill.addEventListener('pointercancel', finishPillDrag);
+    }
   }
 
   btnQuickTest?.addEventListener('click', async () => {
@@ -1389,7 +1407,82 @@ async function fetchTasks() {
     const tasks = await res.json();
     STATE.tasks = tasks;
     renderTasksInDrawer(tasks);
+    updatePillMonitor(tasks);
   } catch (err) {}
+}
+
+let _pillTickerIndex = 0;
+let _pillTickerTimer = null;
+let _currentPillItems = [];
+
+function updatePillMonitor(tasks) {
+  const pill = document.getElementById('minimized-slice-pill');
+  const pillLabel = document.getElementById('minimized-slice-label');
+  const modal = document.getElementById('modal-slice-test');
+  if (!pill || !pillLabel) return;
+
+  const isModalOpen = modal && !modal.classList.contains('hidden');
+  const activeTasks = (tasks || []).filter(t => t.status === 'ACTIVE' || t.status === 'QUEUED');
+  const completedRecent = (tasks || []).filter(t => t.status === 'COMPLETED' || t.status === 'DONE');
+
+  // If 30s preview modal is open, hide pill
+  if (isModalOpen) {
+    pill.classList.add('hidden');
+    return;
+  }
+
+  // If no tasks at all, hide pill
+  if (activeTasks.length === 0 && completedRecent.length === 0) {
+    pill.classList.add('hidden');
+    return;
+  }
+
+  // Show floating pill for both 30s Slice and Master 1080p
+  pill.classList.remove('hidden');
+
+  if (activeTasks.length > 0) {
+    pill.classList.remove('pill-done');
+    const items = activeTasks.map(t => {
+      const tag = t.is_preview ? '30s Slice' : 'Master';
+      const stage = t.stage || (t.progress ? `Compositing ${t.progress.toFixed(0)}%` : 'Running...');
+      return `<i class="fas fa-bolt text-accent"></i> <strong>${tag} (#${t.id})</strong>: ${stage}`;
+    });
+
+    _currentPillItems = items;
+    if (_pillTickerIndex >= items.length) _pillTickerIndex = 0;
+    renderCurrentPillItem();
+
+    if (!_pillTickerTimer) {
+      _pillTickerTimer = setInterval(() => {
+        if (_currentPillItems.length > 1) {
+          _pillTickerIndex = (_pillTickerIndex + 1) % _currentPillItems.length;
+          if (pillLabel) {
+            pillLabel.style.opacity = '0';
+            setTimeout(() => {
+              renderCurrentPillItem();
+              pillLabel.style.opacity = '1';
+            }, 200);
+          }
+        } else if (_currentPillItems.length === 1) {
+          _pillTickerIndex = 0;
+          renderCurrentPillItem();
+        }
+      }, 2600);
+    }
+  } else {
+    // Active tasks finished! Show completed badge with clickable action
+    pill.classList.add('pill-done');
+    const latest = completedRecent[0];
+    const filename = latest && latest.output_path ? latest.output_path.split('\\').pop() : '';
+    pillLabel.innerHTML = `<i class="fas fa-check-circle" style="color:var(--accent-green)"></i> <strong>Ready</strong>: ${filename || 'Render Complete! Click to View'}`;
+  }
+}
+
+function renderCurrentPillItem() {
+  const pillLabel = document.getElementById('minimized-slice-label');
+  if (pillLabel && _currentPillItems.length > 0) {
+    pillLabel.innerHTML = _currentPillItems[_pillTickerIndex % _currentPillItems.length];
+  }
 }
 
 function renderTasksInDrawer(tasks) {

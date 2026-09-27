@@ -105,12 +105,18 @@ class StreamMixTaskManager:
                 prog_state = {"yt_pct": 0, "twitch_pct": 0, "yt_speed": "", "twitch_speed": ""}
 
                 def update_parallel_stage():
-                    parts = []
-                    if yt_is_online:
-                        parts.append(f"YT: {prog_state['yt_pct']}%")
-                    if twitch_is_online:
-                        parts.append(f"BG: {prog_state['twitch_pct']}%")
-                    task["stage"] = f"⚡ Parallel High-Speed Download ({' | '.join(parts)})"
+                    if yt_is_online and twitch_is_online:
+                        task["stage"] = f"Downloading YT: {prog_state['yt_pct']}% | Twitch: {prog_state['twitch_pct']}%"
+                        avg_pct = (prog_state["yt_pct"] + prog_state["twitch_pct"]) / 2.0
+                        task["progress"] = round(avg_pct * 0.25, 1)
+                    elif yt_is_online:
+                        sp = f" ({prog_state['yt_speed']})" if prog_state['yt_speed'] else ""
+                        task["stage"] = f"Downloading YouTube: {prog_state['yt_pct']}%{sp}"
+                        task["progress"] = round(prog_state["yt_pct"] * 0.25, 1)
+                    elif twitch_is_online:
+                        sp = f" ({prog_state['twitch_speed']})" if prog_state['twitch_speed'] else ""
+                        task["stage"] = f"Downloading Twitch BG: {prog_state['twitch_pct']}%{sp}"
+                        task["progress"] = round(prog_state["twitch_pct"] * 0.25, 1)
 
                 async def download_yt_task():
                     if not yt_is_online:
@@ -150,7 +156,8 @@ class StreamMixTaskManager:
 
                 # Execute both streams simultaneously in parallel!
                 if yt_is_online or twitch_is_online:
-                    task["stage"] = "⚡ Initializing Parallel High-Speed Slicers..."
+                    task["stage"] = "Connecting & Initializing High-Speed Slicers..."
+                    task["progress"] = 2.0
                     yt_local, twitch_local = await asyncio.gather(download_yt_task(), download_twitch_task())
                     params["youtube_main_path"] = yt_local
                     params["twitch_bg_path"] = twitch_local
@@ -164,7 +171,8 @@ class StreamMixTaskManager:
                 # 3. Dynamic Subtitles Generation (Groq Whisper + 18 Typography Presets)
                 if params.get("enable_captions") and not params.get("ass_subtitles_path"):
                     try:
-                        task["stage"] = "Generating Dynamic Subtitles (Groq AI)..."
+                        task["stage"] = "🤖 Groq Whisper: Generating Word-Level AI Subtitles..."
+                        task["progress"] = 27.0
                         from .subtitle_generator import transcribe_audio_words, create_ass_subtitles
                         from .config import find_ffmpeg, TEMP_DIR
                         import subprocess
@@ -199,16 +207,17 @@ class StreamMixTaskManager:
                                     custom_h=params.get("caption_h")
                                 )
                                 params["ass_subtitles_path"] = ass_file
+                        task["progress"] = 30.0
                     except Exception as sub_err:
                         print(f"[TaskManager] Subtitle generation note: {sub_err}")
 
                 # 4. GPU Single-Pass Compositing
                 task["stage"] = "GPU Single-Pass Compositing & Rendering..."
 
-
                 def update_progress(pct: float, fps: int, eta: str):
                     if task_id in self.tasks and self.tasks[task_id]["status"] != "CANCELLED":
-                        self.tasks[task_id]["progress"] = round(pct, 1)
+                        overall = 30.0 + (pct * 0.70)
+                        self.tasks[task_id]["progress"] = round(overall, 1)
                         self.tasks[task_id]["fps"] = fps
                         self.tasks[task_id]["eta"] = eta
                         self.tasks[task_id]["stage"] = f"Compositing 1080p @ {fps} FPS"
@@ -221,7 +230,7 @@ class StreamMixTaskManager:
 
                 task["status"] = "COMPLETED"
                 task["progress"] = 100.0
-                task["stage"] = "Render Complete!"
+                task["stage"] = "✅ Render Complete!"
                 task["output_path"] = output_file
 
             except Exception as e:

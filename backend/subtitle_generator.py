@@ -11,243 +11,222 @@ from typing import List, Dict, Any, Optional
 from .config import TEMP_DIR, log_error
 from .api_pool import groq_pool
 
-# ─── PRESET STYLES ────────────────────────────────────────────────────────────
-# font_size  : slider units (22-28); multiplied by 4.2 → 1920x1080 ASS pixel size
-# shadow_color: ASS BackColour (used as glow color by libass when blur > 0)
-# glow_blur  : \blur value in override tags (0=off, 4-12=neon glow)
-# outline_width / shadow_dist: pre-scaling values (×2.8 / ×2.4 for 16:9)
+# ─── PRESET STYLES (100% 1:1 Palette Matching with Frontend Canvas) ────────────
+# Colors stored in ASS BGR format: &H00BBGGRR&
 PRESET_STYLES = {
     "capcut_yellow": {
         "name": "CapCut Viral Yellow",
         "font_name": "Montserrat",
-        "font_size": 24,
         "primary_color":   "&H00FFFFFF",
-        "highlight_color": "&H0010E0FF",   # Yellow (#FFE010) BGR
+        "highlight_color": "&H0000FFFF",   # #ffff00 Yellow BGR
         "outline_color":   "&H00000000",
-        "shadow_color":    "&H990010E0",   # Yellow glow shadow
+        "shadow_color":    "&H9900CCFF",   # #ffcc00 Yellow glow
         "outline_width": 3.8,
-        "shadow_dist": 3.0,
+        "shadow_dist": 2.6,
         "glow_blur": 8,
         "bold": 1, "uppercase": True, "margin_v": 120
     },
     "hormozi_green": {
         "name": "Hormozi Punch Green",
         "font_name": "Impact",
-        "font_size": 26,
         "primary_color":   "&H00FFFFFF",
-        "highlight_color": "&H0014FF39",   # Neon Green BGR
+        "highlight_color": "&H0066FF00",   # #00ff66 Neon Green BGR
         "outline_color":   "&H00000000",
-        "shadow_color":    "&H9914FF39",   # Green glow
-        "outline_width": 4.5,
-        "shadow_dist": 3.5,
+        "shadow_color":    "&H9900DD44",   # #00dd44 Green glow
+        "outline_width": 4.2,
+        "shadow_dist": 3.0,
         "glow_blur": 10,
         "bold": 1, "uppercase": True, "margin_v": 125
-    },
-    "neon_cyber": {
-        "name": "Neon Cyber Glow",
-        "font_name": "Montserrat",
-        "font_size": 24,
-        "primary_color":   "&H00FFFFFF",
-        "highlight_color": "&H00FFFF00",   # Cyan BGR
-        "outline_color":   "&H00401000",
-        "shadow_color":    "&H99FFFF00",   # Cyan glow
-        "outline_width": 3.5,
-        "shadow_dist": 4.0,
-        "glow_blur": 12,
-        "bold": 1, "uppercase": True, "margin_v": 120
-    },
-    "red_fire": {
-        "name": "Red Fire Accent",
-        "font_name": "Impact",
-        "font_size": 24,
-        "primary_color":   "&H00FFFFFF",
-        "highlight_color": "&H003333FF",   # Red BGR
-        "outline_color":   "&H00000000",
-        "shadow_color":    "&H993333FF",   # Red glow
-        "outline_width": 4.0,
-        "shadow_dist": 3.0,
-        "glow_blur": 8,
-        "bold": 1, "uppercase": True, "margin_v": 120
-    },
-    "clean_minimal": {
-        "name": "Clean Minimalist",
-        "font_name": "Inter",
-        "font_size": 22,
-        "primary_color":   "&H00FFFFFF",
-        "highlight_color": "&H00E0E0E0",
-        "outline_color":   "&H00151515",
-        "shadow_color":    "&H60000000",
-        "outline_width": 2.0,
-        "shadow_dist": 1.5,
-        "glow_blur": 0,
-        "bold": 1, "uppercase": False, "margin_v": 115
     },
     "mrbeast_punch": {
         "name": "MrBeast Punchy Gold",
         "font_name": "Bangers",
-        "font_size": 28,
-        "primary_color":   "&H0010E0FF",
-        "highlight_color": "&H003333FF",   # Red BGR
+        "primary_color":   "&H00FFFFFF",
+        "highlight_color": "&H0024BFFB",   # #fbbf24 Gold BGR
         "outline_color":   "&H00000000",
-        "shadow_color":    "&H993333FF",   # Red glow
-        "outline_width": 5.5,
-        "shadow_dist": 3.5,
+        "shadow_color":    "&H990677D9",   # #d97706 Gold glow
+        "outline_width": 4.8,
+        "shadow_dist": 3.2,
         "glow_blur": 10,
         "bold": 1, "uppercase": True, "margin_v": 130
     },
     "ali_abdaal": {
         "name": "Ali Abdaal Aesthetic",
         "font_name": "Poppins",
-        "font_size": 22,
         "primary_color":   "&H00FFFFFF",
-        "highlight_color": "&H004DA9FF",   # Orange-amber BGR
+        "highlight_color": "&H00F8BD38",   # #38bdf8 Electric Sky Blue BGR
         "outline_color":   "&H001A1A1A",
-        "shadow_color":    "&H604DA9FF",   # Soft glow
-        "outline_width": 2.5,
-        "shadow_dist": 2.0,
-        "glow_blur": 6,
-        "bold": 1, "uppercase": False, "margin_v": 120
+        "shadow_color":    "&H99C78402",   # #0284c7 Blue glow
+        "outline_width": 3.6,
+        "shadow_dist": 2.4,
+        "glow_blur": 8,
+        "bold": 1, "uppercase": True, "margin_v": 120
     },
     "iman_gadzhi": {
         "name": "Iman Gadzhi Luxury",
         "font_name": "Cinzel",
-        "font_size": 23,
-        "primary_color":   "&H00EAFEF4",
-        "highlight_color": "&H0037AFD4",   # Gold BGR
+        "primary_color":   "&H00FFFFFF",
+        "highlight_color": "&H0000D7FF",   # #ffd700 Gold BGR
         "outline_color":   "&H00000000",
-        "shadow_color":    "&H9937AFD4",   # Gold glow
-        "outline_width": 3.5,
-        "shadow_dist": 3.0,
+        "shadow_color":    "&H990B9EF5",   # #f59e0b Gold glow
+        "outline_width": 3.6,
+        "shadow_dist": 2.8,
         "glow_blur": 8,
         "bold": 1, "uppercase": True, "margin_v": 120
     },
     "tiktok_violet": {
         "name": "TikTok Viral Violet",
         "font_name": "Archivo Black",
-        "font_size": 25,
-        "primary_color":   "&H00852AFF",
-        "highlight_color": "&H00FF00BD",   # Violet BGR
+        "primary_color":   "&H00FFFFFF",
+        "highlight_color": "&H00EF46D9",   # #d946ef Magenta/Violet BGR
         "outline_color":   "&H00000000",
-        "shadow_color":    "&H99FF00BD",   # Violet glow
-        "outline_width": 4.5,
-        "shadow_dist": 4.0,
+        "shadow_color":    "&H99F755A8",   # #a855f7 Violet glow
+        "outline_width": 4.2,
+        "shadow_dist": 3.2,
         "glow_blur": 10,
         "bold": 1, "uppercase": True, "margin_v": 125
     },
     "podcast_pill": {
         "name": "Vox / Podcast Box",
         "font_name": "Outfit",
-        "font_size": 22,
         "primary_color":   "&H00FFFFFF",
-        "highlight_color": "&H0000E6FF",   # Amber BGR
+        "highlight_color": "&H00FFE500",   # #00e5ff Cyan BGR
         "outline_color":   "&H00111111",
-        "shadow_color":    "&H9900E6FF",   # Amber glow
-        "outline_width": 3.0,
-        "shadow_dist": 3.0,
+        "shadow_color":    "&H99D8B400",   # #00b4d8 Cyan glow
+        "outline_width": 3.6,
+        "shadow_dist": 2.6,
         "glow_blur": 8,
-        "bold": 1, "uppercase": False, "margin_v": 120
+        "bold": 1, "uppercase": True, "margin_v": 120
     },
     "streamer_lime": {
         "name": "Streamer High-Voltage",
         "font_name": "Luckiest Guy",
-        "font_size": 26,
-        "primary_color":   "&H0000FFA6",
-        "highlight_color": "&H00FFF000",   # Lime BGR
+        "primary_color":   "&H00FFFFFF",
+        "highlight_color": "&H0035E6A3",   # #a3e635 Lime BGR
         "outline_color":   "&H00000000",
-        "shadow_color":    "&H99FFF000",   # Lime glow
-        "outline_width": 5.0,
-        "shadow_dist": 4.0,
-        "glow_blur": 12,
+        "shadow_color":    "&H9916CC84",   # #84cc16 Lime glow
+        "outline_width": 4.5,
+        "shadow_dist": 3.2,
+        "glow_blur": 10,
         "bold": 1, "uppercase": True, "margin_v": 130
+    },
+    "neon_cyber": {
+        "name": "Neon Cyber Glow",
+        "font_name": "Montserrat",
+        "primary_color":   "&H00FFFF00",   # #00ffff Cyan base BGR
+        "highlight_color": "&H00FF00FF",   # #ff00ff Magenta active BGR
+        "outline_color":   "&H00401000",
+        "shadow_color":    "&H99EC55BF",   # #bf55ec Purple glow
+        "outline_width": 3.8,
+        "shadow_dist": 3.2,
+        "glow_blur": 12,
+        "bold": 1, "uppercase": True, "margin_v": 120
+    },
+    "red_fire": {
+        "name": "Red Fire Accent",
+        "font_name": "Impact",
+        "primary_color":   "&H00FFFFFF",
+        "highlight_color": "&H004433FF",   # #ff3344 Fire Red BGR
+        "outline_color":   "&H00000000",
+        "shadow_color":    "&H994444EF",   # #ef4444 Red glow
+        "outline_width": 4.2,
+        "shadow_dist": 2.8,
+        "glow_blur": 8,
+        "bold": 1, "uppercase": True, "margin_v": 120
     },
     "dark_stoic": {
         "name": "Stoic Slate Wisdom",
         "font_name": "Oswald",
-        "font_size": 26,
-        "primary_color":   "&H00FFFFFF",
-        "highlight_color": "&H00F88C81",
+        "primary_color":   "&H00E1D5CB",   # #cbd5e1 Slate BGR
+        "highlight_color": "&H00FFFFFF",   # #ffffff White active
         "outline_color":   "&H000F0F14",
-        "shadow_color":    "&H80000000",
-        "outline_width": 4.0,
-        "shadow_dist": 2.5,
+        "shadow_color":    "&H99B8A394",   # #94a3b8 Slate glow
+        "outline_width": 3.6,
+        "shadow_dist": 2.4,
         "glow_blur": 0,
         "bold": 1, "uppercase": True, "margin_v": 120
+    },
+    "clean_minimal": {
+        "name": "Clean Minimalist",
+        "font_name": "Inter",
+        "primary_color":   "&H00FFFFFF",
+        "highlight_color": "&H00FFFFFF",
+        "outline_color":   "&H00151515",
+        "shadow_color":    "&H99B8A394",
+        "outline_width": 2.6,
+        "shadow_dist": 2.0,
+        "glow_blur": 0,
+        "bold": 1, "uppercase": True, "margin_v": 115
     },
     "retro_vintage": {
         "name": "Retro Vintage 70s",
         "font_name": "Arial Black",
-        "font_size": 25,
-        "primary_color":   "&H003CA0FF",
-        "highlight_color": "&H0000FFFF",   # Yellow BGR
+        "primary_color":   "&H003CA0FF",   # #ffa03c Orange BGR
+        "highlight_color": "&H0000FFFF",   # #ffff00 Yellow BGR
         "outline_color":   "&H00101530",
-        "shadow_color":    "&H9900FFFF",   # Yellow glow
-        "outline_width": 4.5,
-        "shadow_dist": 3.0,
+        "shadow_color":    "&H990B9EF5",   # #f59e0b Gold glow
+        "outline_width": 4.2,
+        "shadow_dist": 2.8,
         "glow_blur": 8,
         "bold": 1, "uppercase": True, "margin_v": 125
     },
     "midnight_blue": {
         "name": "Midnight Blue Neon",
         "font_name": "Montserrat",
-        "font_size": 24,
         "primary_color":   "&H00FFFFFF",
-        "highlight_color": "&H00FF9000",   # Sky blue BGR
+        "highlight_color": "&H00F8BD38",   # #38bdf8 Electric Sky Blue BGR
         "outline_color":   "&H004A150A",
-        "shadow_color":    "&H99FF9000",   # Blue glow
-        "outline_width": 4.0,
-        "shadow_dist": 3.5,
+        "shadow_color":    "&H99EB6325",   # #2563eb Royal Blue glow
+        "outline_width": 3.8,
+        "shadow_dist": 3.0,
         "glow_blur": 10,
         "bold": 1, "uppercase": True, "margin_v": 120
     },
     "true_crime": {
         "name": "True Crime Cold",
-        "font_name": "Impact",
-        "font_size": 24,
+        "font_name": "Courier New",
         "primary_color":   "&H00E0E0E0",
-        "highlight_color": "&H002020E0",   # Crimson BGR
+        "highlight_color": "&H004444EF",   # #ef4444 Blood Red BGR
         "outline_color":   "&H00050505",
-        "shadow_color":    "&H802020E0",   # Red glow
-        "outline_width": 4.0,
-        "shadow_dist": 3.0,
+        "shadow_color":    "&H992626DC",   # #dc2626 Red glow
+        "outline_width": 3.6,
+        "shadow_dist": 2.6,
         "glow_blur": 6,
         "bold": 1, "uppercase": True, "margin_v": 120
     },
     "wealth_cash": {
         "name": "Wealth & Cash Mint",
         "font_name": "Impact",
-        "font_size": 26,
         "primary_color":   "&H00FFFFFF",
-        "highlight_color": "&H0070DF10",   # Emerald BGR
+        "highlight_color": "&H0070DF10",   # #10df70 Cash Green BGR
         "outline_color":   "&H0010300A",
-        "shadow_color":    "&H9970DF10",   # Emerald glow
-        "outline_width": 4.5,
-        "shadow_dist": 3.5,
+        "shadow_color":    "&H99699605",   # #059669 Emerald glow
+        "outline_width": 4.2,
+        "shadow_dist": 3.0,
         "glow_blur": 10,
         "bold": 1, "uppercase": True, "margin_v": 125
     },
     "cosmic_violet": {
         "name": "Cosmic Deep Violet",
         "font_name": "Montserrat",
-        "font_size": 24,
         "primary_color":   "&H00FFFFFF",
-        "highlight_color": "&H00FC42B2",   # Violet BGR
+        "highlight_color": "&H00FC84C0",   # #c084fc Lavender BGR
         "outline_color":   "&H00350B40",
-        "shadow_color":    "&H99FC42B2",   # Violet glow
-        "outline_width": 4.0,
-        "shadow_dist": 4.0,
+        "shadow_color":    "&H99EA3393",   # #9333ea Purple glow
+        "outline_width": 3.8,
+        "shadow_dist": 3.2,
         "glow_blur": 12,
         "bold": 1, "uppercase": True, "margin_v": 120
     },
     "cinematic_bronze": {
         "name": "Cinematic Bronze Gold",
         "font_name": "Cinzel",
-        "font_size": 23,
-        "primary_color":   "&H00E8F0F8",
-        "highlight_color": "&H00258BD4",   # Bronze gold BGR
+        "primary_color":   "&H00F8F0E8",   # #e8f0f8 Soft White
+        "highlight_color": "&H000B9EF5",   # #f59e0b Amber Gold BGR
         "outline_color":   "&H00081220",
-        "shadow_color":    "&H99258BD4",   # Gold glow
+        "shadow_color":    "&H990677D9",   # #d97706 Bronze glow
         "outline_width": 3.5,
-        "shadow_dist": 3.0,
+        "shadow_dist": 2.8,
         "glow_blur": 8,
         "bold": 1, "uppercase": True, "margin_v": 120
     }
@@ -354,14 +333,15 @@ def create_ass_subtitles(
     start_offset: float = 0.0
 ) -> str:
     """
-    Builds production 1080p ASS file matching VG reference engine output.
+    Builds production 1080p ASS file with exact preview canvas parity.
 
-    Key features:
-    - preset font_size (22-28) × 4.2 → pixel size for 1920x1080
-    - Custom font_family override (if specified by user, retains template preset styling)
-    - Colored neon glow via \\blur{N} + colored shadow_color in ASS override
+    Key improvements:
+    - 1:1 Color & Font match with frontend preview templates
+    - Accurate visual font size (matches CSS 2.5vw = ~48-56px)
+    - Dynamic multi-line wrapping (\\N) so words strictly stay inside the box
+    - Neon glow via \\blur + colored shadow
     - Kinetic word bounce: \\fscx108\\fscy108\\b1 on active word
-    - Exact canvas bounding box positioning (custom_x/y/w/h from drag)
+    - Centered bounding box positioning (custom_x/y/w/h from live canvas drag)
     - VG-style zero-overlap cue resolver
     """
     style = PRESET_STYLES.get(preset_key, PRESET_STYLES["capcut_yellow"])
@@ -371,39 +351,40 @@ def create_ass_subtitles(
     if font_family and str(font_family).strip() and str(font_family).strip().lower() != "default":
         font_name = str(font_family).strip()
 
-    # ── Font size: VG engine approach (slider_unit × 4.2 × size_mult) ───────
-    base_slider_fs = style.get("font_size", 24)
-    size_multipliers = {"small": 0.85, "medium": 1.00, "large": 1.18, "huge": 1.38}
-    size_mult = size_multipliers.get(caption_size, 1.18)
-    ass_font_size = round(base_slider_fs * 4.2 * size_mult)
+    # ── Font size: Exact scale parity with preview canvas (2.5vw = ~48-56px) ──
+    size_map = {"small": 44, "medium": 48, "large": 56, "huge": 66}
+    base_fs = size_map.get(caption_size, 56)
 
-    # Blend with box-derived size if caption box was manually resized
+    # Blend with box dimensions if box was resized
     if custom_w is not None and custom_h is not None:
         box_w = float(custom_w)
         box_h = float(custom_h)
-        fs_by_h = box_h * 0.42 * size_mult
-        fs_by_w = box_w / 6.2 * size_mult
-        derived_fs = int(min(fs_by_h, fs_by_w))
-        ass_font_size = int(derived_fs * 0.55 + ass_font_size * 0.45)
+        # Ensure at least 2-3 lines can fit vertically with line spacing
+        max_fs_by_h = box_h / 3.4
+        max_fs_by_w = box_w / 11.0
+        capped_fs = min(max_fs_by_h, max_fs_by_w)
+        ass_font_size = int(min(base_fs, max(36, capped_fs)))
+    else:
+        box_w = 1152.0
+        box_h = 240.0
+        ass_font_size = base_fs
 
-    ass_font_size = max(72, min(190, ass_font_size))
-
-    # ── Outline & Shadow (VG: ×2.8 / ×2.4 for 16:9) ─────────────────────────
-    ass_outline_w = round(style.get("outline_width", 3.8) * 2.8, 1)
-    ass_shadow_d  = round(style.get("shadow_dist", 3.0) * 2.4, 1)
+    # ── Outline & Shadow ───────────────────────────────────────────────────
+    ass_outline_w = round(style.get("outline_width", 3.8), 1)
+    ass_shadow_d  = round(style.get("shadow_dist", 2.8), 1)
     glow_blur     = style.get("glow_blur", 8)
 
     primary_c   = style["primary_color"]
     highlight_c = style["highlight_color"]
     outline_c   = style.get("outline_color", "&H00000000")
-    shadow_c    = style.get("shadow_color", "&H80000000")
+    shadow_c    = style.get("shadow_color", "&H99000000")
     bold        = style.get("bold", 1)
     uppercase   = style.get("uppercase", True)
 
     # ── Position anchor from preview bounding box ─────────────────────────────
     if custom_x is not None and custom_y is not None:
         bw = float(custom_w or 1152)
-        bh = float(custom_h or 280)
+        bh = float(custom_h or 240)
         center_x = int(float(custom_x) + (bw / 2.0))
         center_y = int(float(custom_y) + (bh / 2.0))
     elif custom_x is not None:
@@ -411,7 +392,7 @@ def create_ass_subtitles(
         center_x = int(float(custom_x) + (bw / 2.0))
         center_y = 760
     elif custom_y is not None:
-        bh = float(custom_h or 280)
+        bh = float(custom_h or 240)
         center_x = 960
         center_y = int(float(custom_y) + (bh / 2.0))
     else:
@@ -455,32 +436,60 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
     chunks = group_words_into_phrases(shifted_words, max_words=words_per_group or 5)
 
-    # Build raw cues — one line per active-word highlight slot (VG style)
+    # Calculate line wrapping limits based on box width and font size
+    # In bold fonts, average char width is ~0.60 * font_size
+    line_char_limit = max(10, int((box_w * 0.85) / (ass_font_size * 0.60)))
+    max_words_per_line = 3 if box_w < 900 else 4
+
+    # Build raw cues with intelligent multi-line \\N wrapping
     raw_cues = []
     for chunk in chunks:
         chunk_start = float(chunk[0]["start"])
+
+        # Determine line groupings for this chunk so text stays strictly inside the box
+        chunk_lines = []
+        cur_line = []
+        cur_len = 0
+        for idx, w in enumerate(chunk):
+            w_txt = str(w.get("word", "")).strip()
+            w_len = len(w_txt)
+            if cur_line and (cur_len + 1 + w_len > line_char_limit or len(cur_line) >= max_words_per_line):
+                chunk_lines.append(cur_line)
+                cur_line = [idx]
+                cur_len = w_len
+            else:
+                cur_line.append(idx)
+                cur_len += (1 if cur_len > 0 else 0) + w_len
+        if cur_line:
+            chunk_lines.append(cur_line)
 
         for active_idx, active_word in enumerate(chunk):
             is_last = (active_idx == len(chunk) - 1)
             t_start = chunk_start if active_idx == 0 else float(active_word["start"])
             t_end   = float(active_word["end"]) if is_last else float(chunk[active_idx + 1]["start"])
 
-            line_parts = []
-            for idx, w in enumerate(chunk):
-                raw_w = str(w.get("word", "")).strip().replace("{", "(").replace("}", ")")
-                if idx == active_idx:
-                    # Kinetic pop: highlight color + scale bounce + keep glow blur
-                    line_parts.append(
-                        f"{{\\c{highlight_c}&{blur_tag}\\fscx108\\fscy108\\b1}}{raw_w}"
-                        f"{{\\c{primary_c}&\\fscx100\\fscy100\\b{bold}}}"
-                    )
-                else:
-                    line_parts.append(raw_w)
+            line_strings = []
+            for line_indices in chunk_lines:
+                line_words = []
+                for idx in line_indices:
+                    raw_w = str(chunk[idx].get("word", "")).strip().replace("{", "(").replace("}", ")")
+                    if idx == active_idx:
+                        # Kinetic pop: highlight color + scale bounce + keep glow blur
+                        line_words.append(
+                            f"{{\\c{highlight_c}&{blur_tag}\\fscx108\\fscy108\\b1}}{raw_w}"
+                            f"{{\\c{primary_c}&\\fscx100\\fscy100\\b{bold}}}"
+                        )
+                    else:
+                        line_words.append(raw_w)
+                line_strings.append(" ".join(line_words))
+
+            # Multi-line text joined by \\N for native ASS centered multi-line rendering
+            cues_text = "\\N".join(line_strings)
 
             raw_cues.append({
                 "start": t_start,
                 "end":   t_end,
-                "text":  " ".join(line_parts),
+                "text":  cues_text,
                 "is_chunk_boundary": is_last
             })
 

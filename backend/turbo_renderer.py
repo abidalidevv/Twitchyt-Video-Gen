@@ -55,7 +55,7 @@ def create_caption_bg_image(w: int, h: int, hex_color: str, opacity: float, task
 
 
 def apply_avatar_outer_glow(avatar_path: str, glow_type: str, task_id: str) -> str:
-    """Renders soft outer glow border onto avatar matching CSS preview drop-shadow."""
+    """Renders radiant dual-layer outer glow border onto avatar matching CSS preview drop-shadow."""
     if not glow_type or glow_type.lower() == "none" or not Path(avatar_path).exists():
         return avatar_path
 
@@ -71,15 +71,30 @@ def apply_avatar_outer_glow(avatar_path: str, glow_type: str, task_id: str) -> s
 
     try:
         av = Image.open(avatar_path).convert("RGBA")
-        pad = 28
+        pad = 45
         w, h = av.size
+
+        # 1. Expand alpha onto padded canvas so blur can radiate freely outward in all directions
+        padded_alpha = Image.new("L", (w + pad * 2, h + pad * 2), 0)
+        padded_alpha.paste(av.split()[3], (pad, pad))
+
+        # 2. Dual-layer intense outer glow matching CSS drop-shadow(0 0 14px ...)
+        # Core intense glow (near silhouette)
+        core_alpha = padded_alpha.filter(ImageFilter.MaxFilter(7)).filter(ImageFilter.GaussianBlur(radius=8))
+        # Soft diffused outer aura (extends 20-30px outside)
+        outer_alpha = padded_alpha.filter(ImageFilter.MaxFilter(11)).filter(ImageFilter.GaussianBlur(radius=22))
+
         glow_canvas = Image.new("RGBA", (w + pad * 2, h + pad * 2), (0, 0, 0, 0))
 
-        alpha = av.split()[3]
-        blurred_alpha = alpha.filter(ImageFilter.GaussianBlur(radius=12))
+        # Outer soft aura layer
+        outer_layer = Image.new("RGBA", (w + pad * 2, h + pad * 2), (*glow_rgb, 180))
+        glow_canvas.paste(outer_layer, (0, 0), outer_alpha)
 
-        glow_layer = Image.new("RGBA", (w, h), (*glow_rgb, 200))
-        glow_canvas.paste(glow_layer, (pad, pad), blurred_alpha)
+        # Inner intense core layer
+        core_layer = Image.new("RGBA", (w + pad * 2, h + pad * 2), (*glow_rgb, 255))
+        glow_canvas.paste(core_layer, (0, 0), core_alpha)
+
+        # Crisp avatar on top
         glow_canvas.paste(av, (pad, pad), av)
 
         out_path = TEMP_DIR / f"avatar_glow_{task_id}.png"
@@ -274,7 +289,8 @@ def render_stream_mix(
             crop_mod = f"crop=w='in_w*(1-({crop_l}+{crop_r})/100)':h='in_h*(1-({crop_t}+{crop_b})/100)':x='in_w*{crop_l}/100':y='in_h*{crop_t}/100',"
 
         flip_mod = "hflip," if avatar_flip else ""
-        scale_mod = f"scale={avatar_size}:-2"
+        avatar_h = (int(avatar_size) // 2) * 2
+        scale_mod = f"scale=-2:{avatar_h}"
         filter_chains.append(f"[{avatar_input_idx}:v]{crop_mod}{flip_mod}{scale_mod},format=yuva420p,colorchannelmixer=aa={avatar_opacity:.2f}[av_layer]")
 
         # Dynamic vertical bounce & breathing motion in overlay

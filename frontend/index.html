@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StreamMix Studio — Twitch + YouTube 1080p 60fps Remix Engine</title>
+  <link rel="stylesheet" href="/static/styles.css?v=2.2.3">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Bangers&family=Cinzel:wght@700;900&family=Inter:wght@400;600;700;900&family=Luckiest+Guy&family=Montserrat:wght@700;800;900&family=Oswald:wght@700&family=Outfit:wght@700;900&family=Poppins:wght@700;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+
+  <!-- App Wrapper -->
+  <div class="studio-app">
+
+    <!-- Top Master Navigation Bar -->
+    <header class="master-header">
+      <div class="header-left">
+        <div class="brand">
+          <div class="brand-badge">⚡</div>
+          <div class="brand-text">
+            <span class="brand-name">STREAMMIX</span>
+            <span class="brand-sub">STUDIO 60FPS</span>
+          </div>
+        </div>
+
+        <div id="gpuBadge" class="gpu-indicator" title="Hardware GPU Status">
+          <span class="indicator-dot pulse"></span>
+          <span id="gpuStatusText">GPU: Detecting...</span>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <nav class="nav-tabs">
+        <button id="tabBtnEditor" class="tab-btn active" data-tab="editor">
+          <i class="fas fa-video"></i> Studio Editor
+        </button>
+        <button id="tabBtnPool" class="tab-btn" data-tab="keys">
+          <i class="fas fa-key"></i> API Keys Pool
+        </button>
+        <button id="tabBtnSettings" class="tab-btn" data-tab="settings">
+          <i class="fas fa-sliders-h"></i> Settings & GPU
+        </button>
+        <a href="/docs-guide" target="_blank" class="tab-btn tab-link">
+          <i class="fas fa-book-open"></i> Docs Manual
+        </a>
+      </nav>
+
+      <!-- Header Right: Task Drawer Trigger, Error Logs & Output Folder -->
+      <div class="header-right">
+        <button id="btnOpenLogs" class="btn-ghost" title="View Error & System Logs">
+          <i class="fas fa-file-waveform text-danger"></i> Error Logs
+        </button>
+        <button id="btnOpenOutputs" class="btn-ghost" title="Open Outputs Folder in Windows Explorer">
+          <i class="fas fa-folder-open"></i> Outputs
+        </button>
+        <button id="btnToggleDrawer" class="btn-drawer-trigger">
+          <i class="fas fa-layer-group"></i>
+          <span>Tasks</span>
+          <span id="taskCountBadge" class="task-count-pill">0</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- MAIN VIEW 1: STUDIO EDITOR -->
+    <main id="view-editor" class="view-panel active">
+      <div class="editor-grid">
+
+        <!-- LEFT COLUMN: Interactive WYSIWYG 16:9 Director Canvas Stage -->
+        <section class="stage-column">
+          <div class="stage-card">
+            <div class="stage-header">
+              <div class="stage-title">
+                <i class="fas fa-tv text-primary"></i> 16:9 Master Director Stage (WYSIWYG)
+              </div>
+              <div class="stage-badges">
+                <button type="button" class="btn-stage-tool" id="btn-toggle-grid" onclick="toggleStageGrid()">
+                  📐 Safe Grid (90%)
+                </button>
+                <button type="button" class="btn-stage-tool" id="btn-reset-layout" onclick="resetStageLayout()">
+                  🔄 Reset Positions
+                </button>
+                <span id="durationSyncBadge" class="badge-duration">Duration: Syncing...</span>
+              </div>
+            </div>
+
+            <!-- 16:9 Interactive WYSIWYG Canvas Box -->
+            <div class="stage-viewport-container">
+              <div class="stage-canvas-16-9" id="stage-canvas">
+
+                <!-- Layer 1: Twitch Gameplay Background with Live Blur -->
+                <div class="stage-bg-layer" id="stage-bg-layer">
+                  <div class="bg-sim-stream" id="bg-sim-stream"></div>
+                  <div class="stage-bg-tint-overlay" id="stage-bg-tint"></div>
+                </div>
+
+                <!-- Layer 2: YouTube Main Video Overlay (with Live Opacity) -->
+                <div class="stage-yt-layer" id="stage-yt-layer">
+                  <div class="yt-stream-overlay-content">
+                    <div class="yt-screen-border">
+                      <div class="yt-banner-pill"><i class="fab fa-youtube text-danger"></i> YouTube Reaction Master</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Safe Guide Grid Overlay (Toggleable) -->
+                <div class="stage-grid-overlay" id="stage-grid" style="display: none;">
+                  <div class="stage-safe-box">
+                    <span class="safe-label-tl">90% Action Safe Zone</span>
+                    <span class="safe-label-br">1920×1080 Frame</span>
+                    <div class="stage-crosshair-center"></div>
+                  </div>
+                </div>
+
+                <!-- Layer 3: Draggable & Resizable Host Avatar Cutout -->
+                <div class="stage-element stage-avatar-box" id="stage-avatar-box" tabindex="0" title="Author Avatar (Drag anywhere, drag corner handles to scale)">
+                  <div class="stage-element-tag">👤 Host Avatar</div>
+                  <img id="stage-avatar-img" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2364748b' width='100%' height='100%'><path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/></svg>" alt="Avatar" />
+                  <div class="stage-resize-handle handle-br" data-target="avatar" data-dir="br" title="Drag corner to scale avatar"></div>
+                  <div class="stage-resize-handle handle-bl" data-target="avatar" data-dir="bl" title="Drag corner to scale avatar"></div>
+                  <div class="stage-resize-handle handle-tr" data-target="avatar" data-dir="tr" title="Drag corner to scale avatar"></div>
+                  <div class="stage-resize-handle handle-tl" data-target="avatar" data-dir="tl" title="Drag corner to scale avatar"></div>
+                </div>
+
+                <!-- Layer 4: Draggable & Resizable Captions Box -->
+                <div class="stage-element stage-caption-box" id="stage-caption-box" tabindex="0" title="Captions Area (Drag box to move, drag any edge or corner to resize)">
+                  <div class="stage-element-tag">💬 Captions Box</div>
+                  <div class="stage-caption-content" id="stage-caption-content">
+                    <span class="demo-word" data-w="0">WAIT...</span>
+                    <span class="demo-word" data-w="1">DID</span>
+                    <span class="demo-word" data-w="2">HE</span>
+                    <span class="demo-word" data-w="3">REALLY</span>
+                    <br/>
+                    <span class="demo-word active" data-w="4">JUST</span>
+                    <span class="demo-word active" data-w="5">DO</span>
+                    <span class="demo-word active" data-w="6">THAT?!</span>
+                  </div>
+                  <!-- 8-Directional Resize Handles for Captions -->
+                  <div class="stage-resize-handle handle-t"  data-target="caption" data-dir="t"  title="Resize Top"></div>
+                  <div class="stage-resize-handle handle-b"  data-target="caption" data-dir="b"  title="Resize Bottom"></div>
+                  <div class="stage-resize-handle handle-l"  data-target="caption" data-dir="l"  title="Resize Left"></div>
+                  <div class="stage-resize-handle handle-r"  data-target="caption" data-dir="r"  title="Resize Right"></div>
+                  <div class="stage-resize-handle handle-tl" data-target="caption" data-dir="tl" title="Resize Top-Left"></div>
+                  <div class="stage-resize-handle handle-tr" data-target="caption" data-dir="tr" title="Resize Top-Right"></div>
+                  <div class="stage-resize-handle handle-bl" data-target="caption" data-dir="bl" title="Resize Bottom-Left"></div>
+                  <div class="stage-resize-handle handle-br" data-target="caption" data-dir="br" title="Resize Bottom-Right"></div>
+                </div>
+
+              </div><!-- /stage-canvas -->
+            </div><!-- /stage-viewport-container -->
+
+            <!-- Stage Real-time Sliders & Inspector Bar -->
+            <div class="stage-controls-bar">
+              <div class="stage-hint">
+                <i class="fas fa-mouse-pointer text-accent"></i>
+                <span id="stage-inspect-text">Drag Avatar or Captions directly on canvas. Corner handles resize freely!</span>
+              </div>
+              <div class="stage-hud-quick">
+                <span id="hud-bg-blur-pill">BG Blur: 18px</span>
+                <span id="hud-yt-blur-pill">YT Blur: 18px</span>
+                <span id="hud-opacity-pill">YT: 70%</span>
+                <span id="hud-avatar-pill">Avatar: 420px</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom Action Buttons: Render & 30s Quick Slice (Never blocked!) -->
+          <div class="action-footer-card">
+            <button id="btn-quick-test" class="btn-slice-test" title="Quick 30s hardware slice test in pop-up player">
+              <i class="fas fa-bolt"></i> ⚡ Quick 30s Test Slice
+            </button>
+            <button id="btn-start-render" class="btn-master-render" title="Start Full 1080p 60fps Master GPU Render">
+              <i class="fas fa-rocket"></i> START 1080P MASTER RENDER
+            </button>
+          </div>
+        </section>
+
+        <!-- RIGHT COLUMN: Layer Configurator Workstation -->
+        <section class="config-column">
+          <div class="layers-scroll-container">
+
+            <!-- LAYER 1: Gameplay Background (Twitch or YouTube) -->
+            <div class="layer-card">
+              <div class="layer-card-header">
+                <div class="layer-title">
+                  <span class="layer-num">1</span>
+                  <div>
+                    <h4>Background Gameplay (Twitch or YouTube)</h4>
+                    <p class="layer-subtitle">Clean 1080p sharp gameplay canvas (100% Muted)</p>
+                  </div>
+                </div>
+                <div class="source-mode-selector">
+                  <button type="button" class="mode-btn active" id="btnModeTwitchUrl" onclick="switchSourceMode('twitch', 'url')">
+                    <i class="fas fa-link"></i> URL
+                  </button>
+                  <button type="button" class="mode-btn" id="btnModeTwitchFile" onclick="switchSourceMode('twitch', 'file')">
+                    <i class="fas fa-folder"></i> Local File
+                  </button>
+                </div>
+              </div>
+
+              <div class="layer-body">
+                <!-- Mode 1: URL Input -->
+                <div id="twitch-url-group" class="input-mode-group">
+                  <label>Twitch Stream / VOD or YouTube Gameplay URL</label>
+                  <div class="input-with-action">
+                    <input type="text" id="twitch-path" placeholder="https://www.twitch.tv/... or https://www.youtube.com/..." class="text-input">
+                    <button type="button" id="btn-twitch-probe" class="btn-action">Probe</button>
+                  </div>
+                  <div class="helper-hint">
+                    <i class="fas fa-info-circle"></i> Slices only the required duration. Full 2.5hr download is NOT needed!
+                  </div>
+                </div>
+
+                <!-- Mode 2: Local File Upload/Pick -->
+                <div id="twitch-file-group" class="input-mode-group hidden">
+                  <label>Select Local Gameplay Video (MP4 / MKV)</label>
+                  <div class="file-picker-box">
+                    <input type="file" id="twitch-file-input" accept="video/mp4,video/mkv,video/webm" class="hidden">
+                    <button type="button" class="btn-browse" onclick="document.getElementById('twitch-file-input').click()">
+                      <i class="fas fa-upload"></i> Browse Local File
+                    </button>
+                    <span id="twitch-filename" class="selected-filename">No file selected</span>
+                  </div>
+                </div>
+
+                <div id="twitch-info-badge" class="stream-info-badge hidden"></div>
+
+                <!-- Layer 1: Background Gaussian Blur Slider -->
+                <div class="slider-group">
+                  <div class="slider-label-row">
+                    <label class="slider-label"><i class="fas fa-tint"></i> Background Gaussian Blur Sigma</label>
+                    <span class="slider-value-badge" id="bg-blur-val">0px</span>
+                  </div>
+                  <input type="range" id="bg-blur" min="0" max="40" value="0" class="range-slider">
+                </div>
+
+                <!-- Layer 1: Quick Cut Duration Buttons -->
+                <div class="slider-group">
+                  <label class="slider-label"><i class="fas fa-scissors"></i> Video Cut Duration</label>
+                  <div class="quick-cut-row">
+                    <button type="button" class="btn-cut active" id="cut-btn-0" onclick="setQuickCut(0)">No Cut</button>
+                    <button type="button" class="btn-cut" id="cut-btn-5" onclick="setQuickCut(5)">5 min</button>
+                    <button type="button" class="btn-cut" id="cut-btn-10" onclick="setQuickCut(10)">10 min</button>
+                    <button type="button" class="btn-cut" id="cut-btn-15" onclick="setQuickCut(15)">15 min</button>
+                    <input type="text" id="twitch-cut-duration-custom" placeholder="Custom" class="text-input code-font btn-cut-custom" style="flex:1;min-width:64px;max-width:90px;" oninput="setQuickCutCustom(this.value)">
+                  </div>
+                  <input type="hidden" id="twitch-cut-duration" value="0">
+                </div>
+
+                <!-- Layer 1 Parameters: Start From + Audio Mute side-by-side -->
+                <div class="half-row">
+                  <div class="half-field">
+                    <label class="slider-label"><i class="fas fa-play-circle"></i> Start From</label>
+                    <input type="text" id="twitch-start-time" value="00:00:00" placeholder="00:00:00" class="text-input code-font">
+                    <span class="field-hint">HH:MM:SS</span>
+                  </div>
+                  <div class="half-field">
+                    <label class="slider-label"><i class="fas fa-volume-mute"></i> Audio Mute</label>
+                    <div class="toggle-pill" style="margin-top: 8px;">
+                      <input type="checkbox" id="twitch-mute" checked>
+                      <span>100% Mute</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- LAYER 2: YouTube Reaction Main Video -->
+            <div class="layer-card highlight-border">
+              <div class="layer-card-header">
+                <div class="layer-title">
+                  <span class="layer-num layer-master">2</span>
+                  <div>
+                    <h4>YouTube Reaction (Master Track)</h4>
+                    <p class="layer-subtitle">Core commentary layer & duration anchor</p>
+                  </div>
+                </div>
+                <div class="source-mode-selector">
+                  <button type="button" class="mode-btn active" id="btnModeYtUrl" onclick="switchSourceMode('yt', 'url')">
+                    <i class="fas fa-link"></i> URL
+                  </button>
+                  <button type="button" class="mode-btn" id="btnModeYtFile" onclick="switchSourceMode('yt', 'file')">
+                    <i class="fas fa-folder"></i> Local File
+                  </button>
+                </div>
+              </div>
+
+              <div class="layer-body">
+                <!-- Mode 1: URL Input -->
+                <div id="yt-url-group" class="input-mode-group">
+                  <label>YouTube Video URL</label>
+                  <div class="input-with-action">
+                    <input type="text" id="yt-path" placeholder="https://www.youtube.com/watch?v=..." class="text-input">
+                    <button type="button" id="btn-yt-probe" class="btn-action">Probe</button>
+                  </div>
+                </div>
+
+                <!-- Mode 2: Local File Upload/Pick -->
+                <div id="yt-file-group" class="input-mode-group hidden">
+                  <label>Select Local Reaction Video (MP4 / MKV)</label>
+                  <div class="file-picker-box">
+                    <input type="file" id="yt-file-input" accept="video/mp4,video/mkv,video/webm" class="hidden">
+                    <button type="button" class="btn-browse" onclick="document.getElementById('yt-file-input').click()">
+                      <i class="fas fa-upload"></i> Browse Local File
+                    </button>
+                    <span id="yt-filename" class="selected-filename">No file selected</span>
+                  </div>
+                </div>
+
+                <div id="yt-info-badge" class="stream-info-badge hidden"></div>
+
+                <!-- YouTube Reaction Gaussian Blur Slider -->
+                <div class="slider-group">
+                  <div class="slider-label-row">
+                    <label class="slider-label"><i class="fas fa-tint"></i> Reaction Gaussian Blur Sigma</label>
+                    <span class="slider-value-badge" id="yt-blur-val">0px</span>
+                  </div>
+                  <input type="range" id="yt-blur" min="0" max="40" value="0" class="range-slider">
+                </div>
+
+                <!-- YouTube Main Opacity Slider -->
+                <div class="slider-group">
+                  <div class="slider-label-row">
+                    <label class="slider-label"><i class="fas fa-adjust"></i> Main Reaction Video Opacity</label>
+                    <span class="slider-value-badge" id="yt-opacity-val">75% (Clear Reaction)</span>
+                  </div>
+                  <input type="range" id="yt-opacity" min="10" max="100" value="75" class="range-slider">
+                </div>
+
+                <!-- Auto-Synced Duration Display -->
+                <div class="auto-sync-banner">
+                  <div class="sync-check">
+                    <i class="fas fa-film text-primary"></i>
+                    <span><strong>Reaction Master Duration</strong> (Auto-syncs full Twitch background)</span>
+                  </div>
+                  <span id="yt-detected-len" class="sync-len-pill">Auto</span>
+                </div>
+
+                <!-- Layer 2: Video Speed + Voice Pitch side-by-side (50/50) -->
+                <div class="half-row">
+                  <div class="half-field">
+                    <div class="slider-label-row">
+                      <label class="slider-label"><i class="fas fa-tachometer-alt"></i> Video Speed</label>
+                      <span class="slider-value-badge" id="audio-speed-val">1.00x</span>
+                    </div>
+                    <input type="range" id="audio-speed" min="0.80" max="1.50" step="0.05" value="1.00" class="range-slider">
+                  </div>
+                  <div class="half-field">
+                    <div class="slider-label-row">
+                      <label class="slider-label"><i class="fas fa-wave-square"></i> Voice Pitch</label>
+                      <span class="slider-value-badge" id="pitch-semitones-val">0.0 st</span>
+                    </div>
+                    <input type="range" id="pitch-semitones" min="-6.0" max="6.0" step="0.5" value="0.0" class="range-slider">
+                  </div>
+                </div>
+
+                <!-- Bitrate Mode Profile -->
+                <div class="slider-group">
+                  <label class="slider-label">⚡ 1080p Video Bitrate Profile</label>
+                  <div class="btn-group" id="bitrate-mode-group">
+                    <button type="button" class="btn-option" data-bitrate="4500k" onclick="setBitrateMode('4500k')">⚡ 4500k (Fast)</button>
+                    <button type="button" class="btn-option active" data-bitrate="6500k" onclick="setBitrateMode('6500k')">💎 6500k (Pro 1080p)</button>
+                    <button type="button" class="btn-option" data-bitrate="9000k" onclick="setBitrateMode('9000k')">🚀 9000k (Ultra 60fps)</button>
+                  </div>
+                  <input type="hidden" id="bitrate-mode" value="6500k">
+                </div>
+
+                <!-- Anti-Content-ID Protection Shield -->
+                <div class="shield-box">
+                  <div class="shield-header">
+                    <div class="shield-title">
+                      <i class="fas fa-shield-alt text-success"></i>
+                      <span>Anti-Content-ID Protection Shield (YouTube Cloak)</span>
+                    </div>
+                    <label class="switch">
+                      <input type="checkbox" id="acoustic-shield" checked>
+                      <span class="slider round"></span>
+                    </label>
+                  </div>
+                  <p class="shield-desc">
+                    Acoustic micro-pitch shift (+0.6 semitones), stereo stage widening (70%), frequency filtering (45Hz–16.5kHz), and micro-edge crop to prevent automated copyright strikes.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- LAYER 3: Host Avatar Cutout (Draggable, Resizable, Opacity & Slow-Motion) -->
+            <div class="layer-card">
+              <div class="layer-card-header">
+                <div class="layer-title">
+                  <span class="layer-num">3</span>
+                  <div>
+                    <h4>Host Avatar Cutout <span class="badge-optional">(Optional)</span></h4>
+                    <p class="layer-subtitle">Audio-reactive PNG with drag & drop, slow-motion float, and opacity</p>
+                  </div>
+                </div>
+                <label class="switch" title="Enable or disable avatar layer">
+                  <input type="checkbox" id="enable-avatar" checked>
+                  <span class="slider round"></span>
+                </label>
+              </div>
+
+              <div class="layer-body" id="avatar-layer-controls">
+                <div class="avatar-upload-row">
+                  <div class="file-picker-box flex-1">
+                    <input type="file" id="avatar-file-input" accept="image/png,image/webp,image/jpeg" class="hidden">
+                    <button type="button" class="btn-browse" onclick="document.getElementById('avatar-file-input').click()">
+                      <i class="fas fa-image"></i> Upload PNG Avatar
+                    </button>
+                    <span id="avatar-filename" class="selected-filename">Select custom cutout</span>
+                    <input type="hidden" id="avatar-path" value="">
+                  </div>
+                  <div class="avatar-preview-thumbnail">
+                    <img id="avatar-preview-img" src="" style="display: none;" alt="Avatar">
+                  </div>
+                </div>
+
+                <!-- Auto-Trim Padding & Quick Crop Tools -->
+                <div class="avatar-tools-row" style="display: flex; gap: 8px; margin-top: 6px;">
+                  <button type="button" class="btn-option" id="btn-autotrim-avatar" onclick="autoTrimAvatar()" title="Automatically crops transparent empty borders so avatar clings to frame" style="flex: 1; padding: 7px 10px;">
+                    <i class="fas fa-crop-alt text-primary"></i> ✂️ Auto-Trim Margins
+                  </button>
+                  <button type="button" class="btn-option" id="btn-reset-avatar-crop" onclick="resetAvatarCrop()" title="Reset manual cropping" style="flex: 1; padding: 7px 10px;">
+                    🔄 Reset Crop
+                  </button>
+                </div>
+
+                <!-- Avatar Edge Crop Sliders (Fixes wide 16:9 transparent margins) -->
+                <div class="slider-group" style="margin-top: 6px;">
+                  <div class="slider-label-row">
+                    <label class="slider-label"><i class="fas fa-arrows-alt-h"></i> Avatar Crop Edges (Sides & Bottom)</label>
+                    <span class="slider-value-badge" id="avatar-crop-display">L: 0% | R: 0% | B: 0%</span>
+                  </div>
+                  <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
+                    <div>
+                      <span style="font-size: 10.5px; color: var(--text-muted);">Left Crop</span>
+                      <input type="range" id="avatar-crop-left" min="0" max="60" value="0" class="range-slider">
+                    </div>
+                    <div>
+                      <span style="font-size: 10.5px; color: var(--text-muted);">Right Crop</span>
+                      <input type="range" id="avatar-crop-right" min="0" max="60" value="0" class="range-slider">
+                    </div>
+                    <div>
+                      <span style="font-size: 10.5px; color: var(--text-muted);">Bottom Crop</span>
+                      <input type="range" id="avatar-crop-bottom" min="0" max="60" value="0" class="range-slider">
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Placement Presets -->
+                <div class="slider-group">
+                  <label class="slider-label">📍 Preset Alignment</label>
+                  <div class="btn-group" id="avatar-pos-group">
+                    <button type="button" class="btn-option" id="pos-left" onclick="setAvatarPresetPos('left')">⬅️ Left</button>
+                    <button type="button" class="btn-option" id="pos-center" onclick="setAvatarPresetPos('center')">⏺️ Center</button>
+                    <button type="button" class="btn-option active" id="pos-right" onclick="setAvatarPresetPos('right')">➡️ Right</button>
+                  </div>
+                </div>
+
+                <!-- Layer 3: Avatar Height + Avatar Opacity side-by-side (50/50) -->
+                <div class="half-row">
+                  <div class="half-field">
+                    <div class="slider-label-row">
+                      <label class="slider-label"><i class="fas fa-expand-arrows-alt"></i> Avatar Height</label>
+                      <span class="slider-value-badge" id="avatar-size-display">420px</span>
+                    </div>
+                    <input type="range" id="avatar-size" min="250" max="950" value="420" class="range-slider">
+                  </div>
+                  <div class="half-field">
+                    <div class="slider-label-row">
+                      <label class="slider-label"><i class="fas fa-ghost"></i> Opacity</label>
+                      <span class="slider-value-badge" id="avatar-opacity-display">100%</span>
+                    </div>
+                    <input type="range" id="avatar-opacity" min="15" max="100" value="100" class="range-slider">
+                  </div>
+                </div>
+
+                <!-- Outer Glow Border & Mirror Flip (50/50) -->
+                <div class="half-row">
+                  <div class="half-field">
+                    <label class="slider-label">✨ Outer Glow Border</label>
+                    <div class="btn-group" id="avatar-glow-group">
+                      <button type="button" class="btn-option active" onclick="setAvatarGlow('cyan')">🔵 Cyan</button>
+                      <button type="button" class="btn-option" onclick="setAvatarGlow('white')">⚪ White</button>
+                      <button type="button" class="btn-option" onclick="setAvatarGlow('gold')">🟡 Gold</button>
+                      <button type="button" class="btn-option" onclick="setAvatarGlow('none')">✖ None</button>
+                    </div>
+                  </div>
+                  <div class="half-field">
+                    <label class="slider-label">🔄 Mirror / Flip</label>
+                    <button type="button" class="btn-option" id="btn-avatar-flip" onclick="toggleAvatarFlip()" style="width:100%;margin-top:4px;">
+                      🔄 Flip Horizontal
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Motion & Animation Controls -->
+                <div class="two-col">
+                  <div class="slider-group">
+                    <div class="slider-label-row">
+                      <label class="slider-label">🌊 Slow-Motion Sway Speed</label>
+                      <span class="slider-value-badge" id="avatar-speed-display">0.35x (Smooth)</span>
+                    </div>
+                    <input type="range" id="avatar-sway-speed" min="10" max="80" value="35" class="range-slider">
+                  </div>
+                  <div class="half-field">
+                    <label class="slider-label">Motion FX</label>
+                    <div class="motion-fx-row">
+                      <label class="toggle-chip"><input type="checkbox" id="avatar-sway" checked><span>Slow Sway</span></label>
+                      <label class="toggle-chip"><input type="checkbox" id="avatar-bounce" checked><span>Audio Bounce</span></label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- LAYER 4: Dynamic Subtitles with 18 Clickable Style Templates -->
+            <div class="layer-card">
+              <div class="layer-card-header">
+                <div class="layer-title">
+                  <span class="layer-num">4</span>
+                  <div>
+                    <h4>Dynamic Captions & Subtitles <span class="badge-optional">(Optional)</span></h4>
+                    <p class="layer-subtitle">18 viral CapCut styles with draggable box and live font preview</p>
+                  </div>
+                </div>
+                <label class="switch" title="Enable or disable subtitles">
+                  <input type="checkbox" id="enable-captions" checked>
+                  <span class="slider round"></span>
+                </label>
+              </div>
+
+              <div class="layer-body" id="captions-layer-controls">
+                <!-- Caption Placement Presets -->
+                <div class="two-col">
+                  <div class="slider-group">
+                    <label class="slider-label">📍 Caption Placement</label>
+                    <div class="btn-group">
+                      <button type="button" class="btn-option active" id="cap-pos-bottom" onclick="setCaptionPresetPos('bottom')">⬇️ Bottom Area</button>
+                      <button type="button" class="btn-option" id="cap-pos-center" onclick="setCaptionPresetPos('center')">🎯 Center Screen</button>
+                    </div>
+                  </div>
+                  <div class="slider-group">
+                    <label class="slider-label">🔤 Font Size</label>
+                    <div class="btn-group">
+                      <button type="button" class="btn-option" onclick="setCaptionSize('medium')">Medium</button>
+                      <button type="button" class="btn-option active" onclick="setCaptionSize('large')">Large</button>
+                      <button type="button" class="btn-option" onclick="setCaptionSize('huge')">Huge</button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Caption Font Family Override (3rd Row) -->
+                <div class="slider-group" style="margin-top: 10px; margin-bottom: 14px;">
+                  <div class="slider-label-row">
+                    <label class="slider-label"><i class="fas fa-font"></i> Caption Font Family</label>
+                    <span class="slider-value-badge" id="caption-font-family-badge">Default (Template Font)</span>
+                  </div>
+                  <select id="caption-font-family" class="form-input custom-select" onchange="onCaptionFontFamilyChange(this.value)">
+                    <option value="default" selected>Default (Template Font)</option>
+                    <option value="Montserrat">Montserrat (Modern Bold)</option>
+                    <option value="Poppins">Poppins (Clean Geometric)</option>
+                    <option value="Impact">Impact (Punchy Loud)</option>
+                    <option value="Arial Black">Arial Black (Heavy Legible)</option>
+                    <option value="Bangers">Bangers (Comic Cartoon)</option>
+                    <option value="Luckiest Guy">Luckiest Guy (Punchy Chunky)</option>
+                    <option value="Archivo Black">Archivo Black (Ultra Heavy)</option>
+                    <option value="Cinzel">Cinzel (Cinematic / Luxury)</option>
+                    <option value="Oswald">Oswald (Tall Condensed)</option>
+                    <option value="Outfit">Outfit (Sleek Tech)</option>
+                    <option value="Inter">Inter (Clean Minimal)</option>
+                    <option value="Courier New">Courier New (Typewriter / Crime)</option>
+                    <option value="Trebuchet MS">Trebuchet MS (Friendly Clean)</option>
+                  </select>
+                </div>
+
+                <!-- 18 SELECTABLE PRESET TEMPLATES GRID -->
+                <div class="preset-section-header">
+                  <label class="preset-section-title">🎨 18 VIRAL CAPTION PRESET TEMPLATES</label>
+                  <span style="font-size: 0.72rem; color: var(--text-muted);">Click to apply immediately on video</span>
+                </div>
+
+                <div class="preset-grid-18" id="preset-grid">
+                  <!-- 1. CapCut Viral Yellow -->
+                  <div class="preset-card-visual active" data-preset="capcut_yellow" onclick="selectCaptionPreset(this)">
+                    <div class="preset-aa-preview"><span class="aa-capcut">Aa!</span></div>
+                    <div class="preset-name">CapCut Yellow</div>
+                  </div>
+                  <!-- 2. Hormozi Green -->
+                  <div class="preset-card-visual" data-preset="hormozi_green" onclick="selectCaptionPreset(this)">
+                    <div class="preset-aa-preview"><span class="aa-hormozi">Aa!</span></div>
+                    <div class="preset-name">Hormozi Green</div>
+                  </div>
+                  <!-- 3. MrBeast Gold -->
+                  <div class="preset-card-visual" data-preset="mrbeast_punch" onclick="selectCaptionPreset(this)">
+                    <div class="preset-aa-preview"><span class="aa-mrbeast">AA!</span></div>
+                    <div class="preset-name">MrBeast Gold</div>
+                  </div>
+                  <!-- 4. Ali Abdaal -->
+                  <div class="preset-card-visual" data-preset="ali_abdaal" onclick="selectCaptionPreset(this)">
+                    <div class="preset-aa-preview"><span class="aa-ali">Aa!</span></div>
+                    <div class="preset-name">Ali Abdaal</div>
+                  </div>
+                  <!-- 5. Luxury Gold -->
+                  <div class="preset-card-visual" data-preset="iman_gadzhi" onclick="selectCaptionPreset(this)">
+                    <div class="preset-aa-preview"><span class="aa-luxury">AA!</span></div>
+                    <div class="preset-name">Luxury Gold</div>
+                  </div>
+                  <!-- 6. TikTok Violet -->
+                  <div class="preset-card-visual" data-preset="tiktok_violet" onclick="selectCaptionPreset(this)">
+                    <div class="preset-aa-preview"><span class="aa-tiktok">Aa</span></div>
+                    <div class="preset-name">TikTok Violet</div>
+                  </div>
+                  <!-- 7. Podcast Box -->
+                  <div class="preset-card-visual" data-preset="podcast_pill" onclick="selectCaptionPreset(this)">
+                    <div class="preset-aa-preview"><span class="aa-podcast-pill">Aa!</span></div>
+                    <div class="preset-name">Podcast Box</div>
+                  </div>
+                  <!-- 8. Streamer Lime -->
+                  <div class="preset-card-visual" data-preset="streamer_lime" onclick="selectCaptionPreset(this)">
+                    <div class="preset-aa-preview"><span class="aa-streamer">AA!</span></div>
+                    <div class="preset-name">Streamer Lime</div>
+                  </div>
+                  <!-- 9. Neon Cyber -->
+                  <div class="preset-card-visual" data-preset="neon_cyber" onclick="selectCaptionPreset(this)">
+                    <div class="preset-aa-preview"><span class="aa-neon">Aa</span></div>
+                    <div class="preset-name">Neon Cyber</div>
+                  </div>
+                  <!-- 10. Red Fire -->
+                  <div class="preset-card-visual" data-preset="red_fire" onclick="selectCaptionPreset(this)">
+                    <div class="preset-aa-preview"><span class="aa-fire">Aa!</span></div>
+                    <div class="preset-name">Red Fire</div>
+                  </div>
+                  <!-- 11. Stoic Slate -->
+                  <div class="preset-card-visual" data-preset="dark_stoic" onclick="selectCaptionPreset(this)">
+                    <div class="preset-aa-preview"><span class="aa-stoic">Aa!</span></div>
+                    <div class="preset-name">Stoic Slate</div>
+                  </div>
+                  <!-- 12. Clean Minimal -->
+                  <div class="preset-card-visual" data-preset="clean_minimal" onclick="selectCaptionPreset(this)">
+                    <div class="preset-aa-preview"><span class="aa-minimal">Aa</span></div>
+                    <div class="preset-name">Clean Minimal</div>
+                  </div>
+                  <!-- 13. Retro 70s -->
+                  <div class="preset-card-visual" data-preset="retro_vintage" onclick="selectCaptionPreset(this)">
+                    <div class="preset-aa-preview"><span class="aa-retro">Aa!</span></div>
+                    <div class="preset-name">Retro 70s</div>
+                  </div>
+                  <!-- 14. Midnight Blue -->
+                  <div class="preset-card-visual" data-preset="midnight_blue" onclick="selectCaptionPreset(this)">
+                    <div class="preset-aa-preview"><span class="aa-midnight">Aa!</span></div>
+                    <div class="preset-name">Midnight Blue</div>
+                  </div>
+                  <!-- 15. True Crime -->
+                  <div class="preset-card-visual" data-preset="true_crime" onclick="selectCaptionPreset(this)">
+                    <div class="preset-aa-preview"><span class="aa-crime">Aa!</span></div>
+                    <div class="preset-name">True Crime</div>
+                  </div>
+                  <!-- 16. Wealth Mint -->
+                  <div class="preset-card-visual" data-preset="wealth_cash" onclick="selectCaptionPreset(this)">
+                    <div class="preset-aa-preview"><span class="aa-wealth">Aa!</span></div>
+                    <div class="preset-name">Wealth Mint</div>
+                  </div>
+                  <!-- 17. Cosmic Violet -->
+                  <div class="preset-card-visual" data-preset="cosmic_violet" onclick="selectCaptionPreset(this)">
+                    <div class="preset-aa-preview"><span class="aa-cosmic">Aa!</span></div>
+                    <div class="preset-name">Cosmic Violet</div>
+                  </div>
+                  <!-- 18. Cinematic Bronze -->
+                  <div class="preset-card-visual" data-preset="cinematic_bronze" onclick="selectCaptionPreset(this)">
+                    <div class="preset-aa-preview"><span class="aa-bronze">AA!</span></div>
+                    <div class="preset-name">Cinema Bronze</div>
+                  </div>
+                </div>
+
+                <!-- Extra Setting: Caption Background Box (Highlight Backdrop) -->
+                <div class="caption-bg-box-card">
+                  <div class="caption-bg-box-header">
+                    <div class="caption-bg-box-info">
+                      <div class="caption-bg-box-title">
+                        <i class="fas fa-vector-square text-accent"></i>
+                        <span>Caption Background Box</span>
+                        <span class="badge-tag">Custom Backdrop</span>
+                      </div>
+                      <p class="caption-bg-box-desc">Adds a colored, rounded backdrop box inside your resized caption area</p>
+                    </div>
+                    <label class="switch" title="Toggle caption background box">
+                      <input type="checkbox" id="enable-caption-bg" onchange="toggleCaptionBg(this.checked)">
+                      <span class="slider round"></span>
+                    </label>
+                  </div>
+
+                  <!-- Expanded controls when turned ON -->
+                  <div id="caption-bg-options" class="caption-bg-options hidden">
+                    <div class="half-row" style="margin-top: 10px;">
+                      <div class="half-field">
+                        <label class="slider-label">🎨 Box Background Color</label>
+                        <div class="color-picker-row">
+                          <input type="color" id="caption-bg-color" value="#000000" class="input-color-picker" onchange="updateCaptionBgPreview()">
+                          <span class="color-hex-label" id="caption-bg-color-label">#000000</span>
+                        </div>
+                      </div>
+                      <div class="half-field">
+                        <div class="slider-label-row">
+                          <label class="slider-label">🌫️ Box Opacity</label>
+                          <span class="slider-value-badge" id="caption-bg-opacity-badge">75%</span>
+                        </div>
+                        <input type="range" id="caption-bg-opacity" min="10" max="100" value="75" class="range-slider" oninput="updateCaptionBgPreview()">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- LAYER 5: Ambient Background Music (BGM) -->
+            <div class="layer-card">
+              <div class="layer-card-header">
+                <div class="layer-title">
+                  <span class="layer-num">5</span>
+                  <div>
+                    <h4>Ambient Background Music (BGM) <span class="badge-optional">(Optional)</span></h4>
+                    <p class="layer-subtitle">Soft soundtrack ducked dynamically under commentary</p>
+                  </div>
+                </div>
+              </div>
+              <div class="layer-body">
+                <div class="file-picker-box">
+                  <input type="file" id="bgm-file-input" accept="audio/mp3,audio/wav,audio/m4a" class="hidden">
+                  <button type="button" class="btn-browse" onclick="document.getElementById('bgm-file-input').click()">
+                    <i class="fas fa-music"></i> Select Audio File
+                  </button>
+                  <span id="bgm-filename" class="selected-filename">No BGM Selected</span>
+                  <input type="hidden" id="bgm-path" value="">
+                </div>
+                <div class="slider-group" style="margin-top: 12px;">
+                  <div class="slider-label-row">
+                    <label class="slider-label"><i class="fas fa-volume-down"></i> BGM Dynamic Duck Volume</label>
+                    <span class="slider-value-badge" id="bgm-vol-val">7% (Subtle Ambience)</span>
+                  </div>
+                  <input type="range" id="bgm-volume" min="1" max="25" value="7" class="range-slider">
+                </div>
+              </div>
+            </div>
+
+          </div><!-- /layers-scroll-container -->
+        </section><!-- /config-column -->
+
+      </div>
+    </main>
+
+    <!-- VIEW 2: API KEYS POOL -->
+    <div id="view-keys" class="view-panel">
+      <div class="page-container">
+        <div class="page-header">
+          <div>
+            <h2><i class="fas fa-key text-primary"></i> Groq API Key Rotation Pool</h2>
+            <p class="text-muted">Automatic failover rotation across multiple keys on HTTP 429 rate limit.</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Label</th>
+                <th>API Key</th>
+                <th>Status</th>
+                <th>Latency</th>
+                <th>Errors</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="keys-table-body">
+              <tr><td colspan="6" class="text-center py-4">Loading active keys...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card mt-4">
+          <h3>Add New Groq API Key</h3>
+          <form id="form-add-key" class="form-grid mt-3">
+            <div class="form-group">
+              <label>Key Label</label>
+              <input type="text" id="new-key-label" placeholder="e.g. Groq Key 3 (Backup)" class="text-input" required>
+            </div>
+            <div class="form-group">
+              <label>API Key String</label>
+              <input type="text" id="new-key-value" placeholder="gsk_..." class="text-input code-font" required>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn-primary"><i class="fas fa-plus"></i> Add to Pool</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- VIEW 3: SETTINGS & HARDWARE -->
+    <div id="view-settings" class="view-panel">
+      <div class="page-container">
+        <div class="page-header">
+          <div>
+            <h2><i class="fas fa-sliders-h text-primary"></i> System Settings & Hardware Acceleration</h2>
+            <p class="text-muted">Hardware encoding profile and output parameters.</p>
+          </div>
+          <div id="detected-hardware-badge" class="badge-hardware">Detecting GPU...</div>
+        </div>
+
+        <div class="card">
+          <form id="form-settings">
+            <div class="settings-grid">
+              <div class="setting-item">
+                <label>Video Hardware Encoder</label>
+                <select id="setting-encoder" class="text-input">
+                  <option value="auto">Auto-Detect Best (Recommended)</option>
+                  <option value="h264_qsv">Intel QuickSync (h264_qsv)</option>
+                  <option value="h264_nvenc">NVIDIA NVENC (h264_nvenc)</option>
+                  <option value="h264_amf">AMD AMF (h264_amf)</option>
+                  <option value="libx264">Software CPU (libx264)</option>
+                </select>
+                <span class="field-desc">Your hardware encoder achieves 5–7 min renders for 1-hour 1080p 60fps videos.</span>
+              </div>
+
+              <div class="setting-item">
+                <label>Render Quality (CRF)</label>
+                <input type="number" id="setting-crf" min="15" max="28" value="19" class="text-input">
+                <span class="field-desc">19 provides visually lossless 1080p output for YouTube uploads.</span>
+              </div>
+
+              <div class="setting-item">
+                <label>Encoder Preset</label>
+                <select id="setting-preset" class="text-input">
+                  <option value="p4">p4 (Balanced / Fast)</option>
+                  <option value="p7">p7 (Slow / Highest Quality)</option>
+                  <option value="veryfast">veryfast (Fastest CPU)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="mt-4">
+              <button type="submit" class="btn-primary"><i class="fas fa-save"></i> Save Settings</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE-OUT TASK QUEUE DRAWER (NEVER BLOCKS BUTTONS!) -->
+    <div id="taskDrawer" class="task-drawer">
+      <div class="drawer-header">
+        <div class="drawer-title">
+          <i class="fas fa-tasks text-primary"></i>
+          <span>Render Queue & Active Tasks</span>
+        </div>
+        <button id="btnCloseDrawer" class="btn-close-drawer" title="Close Drawer">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
+      <div class="drawer-body" id="drawerTaskBody">
+        <div class="dock-empty">No active rendering tasks.</div>
+      </div>
+
+      <div class="drawer-footer">
+        <button id="btnDrawerOpenFolder" class="btn-drawer-action">
+          <i class="fas fa-folder-open"></i> Open Finished Outputs Folder
+        </button>
+        <button id="btnDrawerOpenLogs" class="btn-drawer-action" style="margin-top: 6px; background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.3);">
+          <i class="fas fa-file-waveform text-danger"></i> View Error & System Logs
+        </button>
+      </div>
+    </div>
+
+    <!-- MODAL: QUICK 30S SLICE TEST PLAYER -->
+    <div id="modal-slice-test" class="modal-overlay hidden">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3><i class="fas fa-bolt text-accent"></i> ⚡ 30-Second Fast Slice Preview</h3>
+          <div class="modal-header-actions">
+            <button id="btn-minimize-slice-modal" class="btn-modal-minimize" title="Minimize / Run in background"><i class="fas fa-minus"></i></button>
+            <button id="btn-close-slice-modal" class="btn-close-modal" title="Close"><i class="fas fa-times"></i></button>
+          </div>
+        </div>
+        <div class="modal-body">
+          <div id="slice-modal-status" class="modal-status-text">Dispatching fast slice to GPU...</div>
+          <video id="slice-video-player" controls autoplay class="modal-video-player" style="display: none;"></video>
+        </div>
+      </div>
+    </div>
+
+    <!-- FLOATING MINIMIZED TASK PILL (Bottom right) -->
+    <div id="minimized-slice-pill" class="floating-task-pill hidden" onclick="restoreSliceModal()" title="Click to view live preview player">
+      <span class="pulsing-dot"></span>
+      <span id="minimized-slice-label"><i class="fas fa-bolt text-accent"></i> Fast Slice in progress...</span>
+      <span style="opacity: 0.6; font-size: 11px; margin-left: 4px;"><i class="fas fa-expand-alt"></i></span>
+    </div>
+
+    <!-- MODAL: SYSTEM & ERROR LOGS -->
+    <div id="modal-logs" class="modal-overlay hidden">
+      <div class="modal-card modal-logs-card">
+        <div class="modal-header">
+          <h3><i class="fas fa-file-waveform text-danger"></i> System & Error Logs</h3>
+          <div class="modal-header-actions">
+            <button id="btn-refresh-logs" class="btn-modal-action" title="Refresh Log Stream"><i class="fas fa-sync-alt"></i> Refresh</button>
+            <button id="btn-copy-logs" class="btn-modal-action" title="Copy Logs to Clipboard"><i class="fas fa-copy"></i> Copy</button>
+            <button id="btn-clear-logs" class="btn-modal-action text-danger" title="Clear Error Log File"><i class="fas fa-trash"></i> Clear</button>
+            <button id="btn-close-logs-modal" class="btn-close-modal"><i class="fas fa-times"></i></button>
+          </div>
+        </div>
+        <div class="modal-body">
+          <div class="logs-path-bar" id="logs-file-path">Path: data/logs/error.log</div>
+          <pre id="logs-content-pre" class="logs-terminal-view">Loading logs...</pre>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="/static/app.js?v=2.2.4"></script>
+</body>
+</html>

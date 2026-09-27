@@ -1,0 +1,34 @@
+# Large archives and binaries (>100MB exceeds GitHub limit)
+*.rar
+*.zip
+*.7z
+bin/
+*.exe
+
+# Local data, outputs, media, temp files, settings, and logs
+data/
+*.mp4
+*.mkv
+*.webm
+*.mov
+*.mp3
+*.wav
+*.ass
+
+# Scratch & development files
+scratch/
+test_font.ass
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.env
+venv/
+.venv/
+
+# IDE & OS
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store

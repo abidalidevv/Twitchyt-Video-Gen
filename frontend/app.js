@@ -731,44 +731,59 @@ window.setCaptionPresetPos = function(pos) {
 
 window.setCaptionSize = function(size) {
   STATE.captionSize = size;
-  const select = document.getElementById('caption-font-size-select');
-  if (select) {
-    if (['small', 'medium', 'large', 'huge', 'extrahuge'].includes(size)) {
-      select.value = size;
-    } else {
-      select.value = 'custom';
-      STATE.captionCustomSize = parseInt(size) || 150;
-    }
-  }
+  const btnMed = document.getElementById('cap-size-medium');
+  const btnLrg = document.getElementById('cap-size-large');
+  const btnHug = document.getElementById('cap-size-huge');
+  const selectMore = document.getElementById('caption-font-size-more');
   const customRow = document.getElementById('custom-font-size-row');
-  if (customRow) {
-    customRow.classList.toggle('hidden', STATE.captionSize !== 'custom');
+
+  // Deactivate all first
+  [btnMed, btnLrg, btnHug, selectMore].forEach(el => el?.classList.remove('active'));
+
+  if (size === 'medium') {
+    btnMed?.classList.add('active');
+    if (selectMore) selectMore.value = "";
+    customRow?.classList.add('hidden');
+  } else if (size === 'large') {
+    btnLrg?.classList.add('active');
+    if (selectMore) selectMore.value = "";
+    customRow?.classList.add('hidden');
+  } else if (size === 'huge') {
+    btnHug?.classList.add('active');
+    if (selectMore) selectMore.value = "";
+    customRow?.classList.add('hidden');
+  } else if (size === 'extrahuge') {
+    selectMore?.classList.add('active');
+    if (selectMore) selectMore.value = "extrahuge";
+    customRow?.classList.add('hidden');
+  } else if (size === 'small') {
+    selectMore?.classList.add('active');
+    if (selectMore) selectMore.value = "small";
+    customRow?.classList.add('hidden');
+  } else if (size === 'custom' || !isNaN(Number(size))) {
+    selectMore?.classList.add('active');
+    if (selectMore) selectMore.value = "custom";
+    customRow?.classList.remove('hidden');
+    if (!isNaN(Number(size))) STATE.captionCustomSize = parseInt(size);
   }
+
   updateCaptionSizeBadge();
   syncStage();
 };
 
-window.onCaptionSizeSelect = function(val) {
-  STATE.captionSize = val;
-  const customRow = document.getElementById('custom-font-size-row');
-  if (customRow) {
-    customRow.classList.toggle('hidden', val !== 'custom');
-  }
-  if (val === 'custom') {
-    const slider = document.getElementById('custom-font-size-slider');
-    STATE.captionCustomSize = parseInt(slider?.value) || 150;
-  }
-  updateCaptionSizeBadge();
-  syncStage();
+window.onCaptionMoreSelect = function(val) {
+  if (!val) return;
+  setCaptionSize(val);
   const labelMap = {
-    small: 'Small (80px)',
-    medium: 'Medium (95px)',
-    large: 'Large (115px)',
-    huge: 'Huge (135px)',
     extrahuge: '💥 Extra Huge (160px)',
-    custom: `Custom (${STATE.captionCustomSize || 150}px)`
+    custom: `Custom (${STATE.captionCustomSize || 150}px)`,
+    small: 'Small (80px)'
   };
   showToast(`Caption font size: ${labelMap[val] || val}`, 'info');
+};
+
+window.onCaptionSizeSelect = function(val) {
+  setCaptionSize(val);
 };
 
 window.onCustomFontSizeInput = function(val) {
@@ -784,6 +799,15 @@ window.onCustomFontSizeInput = function(val) {
   if (numberInput && numberInput.value != num) numberInput.value = num;
   if (customBadge) customBadge.textContent = `${num}px`;
   if (sizeBadge) sizeBadge.textContent = `Custom (${num}px)`;
+
+  const selectMore = document.getElementById('caption-font-size-more');
+  if (selectMore) {
+    selectMore.classList.add('active');
+    selectMore.value = 'custom';
+  }
+  document.getElementById('cap-size-medium')?.classList.remove('active');
+  document.getElementById('cap-size-large')?.classList.remove('active');
+  document.getElementById('cap-size-huge')?.classList.remove('active');
 
   syncStage();
 };

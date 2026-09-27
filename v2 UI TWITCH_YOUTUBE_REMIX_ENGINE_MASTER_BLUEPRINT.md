@@ -35,9 +35,15 @@
 16. [Advanced Pro Creator Suite & High-CTR Add-ons (v2.2 Extensions)](#16-advanced-pro-creator-suite--high-ctr-add-ons)
     - 16.1 [Step 2 Canvas Preview & "⚡ Quick 30s Test Render"](#161-step-2-canvas-preview---quick-30s-test-render)
     - 16.2 [🛡️ YouTube Content ID / Copyright Shield](#162-️-youtube-content-id--copyright-shield)
-    - 16.3 [✂️ Start & End Time Trimmer (In / Out Points)](#163-️-start--end-time-trimmer-in--out-points)
+    - 16.3 [✂️ Background Cut & Master Timeline Sync](#163-️-background-cut--master-timeline-sync)
     - 16.4 [🤖 Auto YouTube Title, Description & Chapters Generator](#164--auto-youtube-title-description--chapters-generator)
     - 16.5 [🎙️ Audio-Reactive Avatar Bounce (PNGtuber Effect)](#165-️-audio-reactive-avatar-bounce-pngtuber-effect)
+17. [🔮 Future Roadmap & Strategic Next Horizons (v2.3+)](#17--future-roadmap--strategic-next-horizons-v23)
+    - 17.1 [Advanced Caption Typography & Granular Styling](#171-advanced-caption-typography--granular-styling)
+    - 17.2 [Layer 1 Multi-Source Background Engine (4-Source Architecture)](#172-layer-1-multi-source-background-engine-4-source-architecture)
+    - 17.3 [AI Smart Silence & Dead-Air Remover (Auto Jump-Cut Engine)](#173-ai-smart-silence--dead-air-remover-auto-jump-cut-engine)
+    - 17.4 [Vertical 9:16 Auto-Stack Re-framer (YouTube Shorts & TikTok Mode)](#174-vertical-916-auto-stack-re-framer-youtube-shorts--tiktok-mode)
+    - 17.5 [Smart Audio Ducking with Sidechain Compression](#175-smart-audio-ducking-with-sidechain-compression)
 
 ---
 
@@ -80,27 +86,27 @@ Content creators producing reaction commentary, video essays, podcasts, and gami
 
 ## 2. Complete Requirements & Feature Matrix
 
-| Category | Requirement | Implementation Specification |
-| :--- | :--- | :--- |
-| **Input 1: Twitch BG** | URL or Local File Picker | `yt-dlp` stream fetcher or HTML file picker. 100% Muted. Auto-trimmed or looped to match YouTube duration. |
-| **Input 2: YouTube Main** | URL or Local File Picker | Master duration layer. Audio source for voice commentary. |
-| **Visual Blur** | Background blur slider | Optional slider (`0px` to `40px`, default `18px`). FFmpeg `gblur=sigma=18` / `boxblur`. |
-| **Main Video Opacity** | Default 50% opacity | Slider (`10%` to `100%`, default `50%`). FFmpeg `colorchannelmixer=aa=0.50`. |
-| **Speed Control** | YouTube speed control | Slider (`0.80x` to `1.50x`, default `1.00x`). Synchronized video `setpts` + audio `atempo`. |
-| **Pitch Shifter** | Voice pitch manipulation | Semitone slider (`-6` to `+6`). Formula: `asetrate=44100*ratio,atempo=1/ratio` (alters voice tone without affecting speech tempo). |
-| **Host Avatar** | Cutout image with sway & bounce | PNG cutout upload, opacity slider (`20%-100%`), Left/Center/Right anchor. Ping-pong slow-motion sway + audio-reactive bounce pulse. |
-| **Background Music** | Default 7% volume + Auto-Ducking | Soft ambient track loop at `0.07` gain ducked under commentary dynamically. |
-| **Captions** | Optional kinetic captions | Groq Whisper `whisper-large-v3` with kinetic `.ass` presets. Transcribes 1-hour audio in ~45s. |
-| **Multi-Tasking** | **2 tasks at a time** | Python `asyncio` / worker pool allowing up to 2 concurrent 1080p rendering jobs. |
-| **Task Dock** | **Minimizable dock** | Floating glassmorphic dock at bottom-right with minimize/expand toggle, progress bars, speed, ETA. |
-| **API Pool Page** | **Groq API Keys Pool** | Multi-key manager with auto-failover on HTTP 429 rate limit, latency ping test, and key health status. |
-| **Settings Panel** | **Full configuration** | Collapsible cards: GPU encoder selection, default export path, audio defaults, auto-open explorer toggle. |
-| **Documentation** | **Built-in `docs.html`** | Beautiful integrated manual with search, visual flowcharts, keyboard shortcuts, and FAQs. |
-| **Fast Preview** | **⚡ Quick 30s Test Render** | 4–5 second instant slice render of any 30s segment in a pop-up modal to verify visual/audio quality. |
-| **Copyright Shield** | **🛡️ YouTube Shield Cloak** | 1-Click anti-copyright cloaking: audio stereo widening (`stereowiden=70`), micro-detuning, micro-crop (0.5% digital zoom). |
-| **Trimmer** | **✂️ In/Out Points Trimmer** | Twitch Start Time (`-ss 00:14:30`) to skip intros, YouTube In/Out Trimming (`-ss`/`-to`). |
-| **YouTube Metadata** | **🤖 Auto Title & Chapters** | Groq Llama-3 generates 5 viral titles, SEO description, auto-chapters timestamps, and 20 tags. |
-| **Output Delivery** | HD 1080p 16:9 + Auto-open | Auto-opens output folder in Windows Explorer (`os.startfile`) immediately upon render completion. |
+| Category | Requirement | Implementation Specification | Status |
+| :--- | :--- | :--- | :---: |
+| **Input 1: Twitch BG** | ~~URL or Local File Picker~~ | ~~`yt-dlp` stream fetcher or HTML file picker. 100% Muted. Quick Cut buttons (No cut, 5m, 10m, 15m, Custom)~~ | ✅ COMPLETED |
+| **Input 2: YouTube Main** | ~~URL or Local File Picker~~ | ~~Master duration layer. Audio source for voice commentary.~~ | ✅ COMPLETED |
+| **Visual Blur** | ~~Dual Gaussian Blur Sliders~~ | ~~Independent sliders for both Background and Reaction (`0px` to `40px`). FFmpeg `gblur=sigma`.~~ | ✅ COMPLETED |
+| **Main Video Opacity** | ~~Reaction Opacity Slider~~ | ~~Slider (`10%` to `100%`, default `75%`). 50/50 side-by-side layout with blur.~~ | ✅ COMPLETED |
+| **Speed Control** | ~~YouTube Speed Control~~ | ~~Slider (`0.80x` to `1.50x`, default `1.00x`). Synchronized video `setpts` + audio `atempo`.~~ | ✅ COMPLETED |
+| **Pitch Shifter** | ~~Voice Pitch Manipulation~~ | ~~Semitone slider (`-6.0` to `+6.0 st`). Dynamic `asetrate + atempo` formula.~~ | ✅ COMPLETED |
+| **Host Avatar** | ~~Cutout Image with Sway & Bounce~~ | ~~PNG upload, opacity, Left/Center/Right presets + Custom Stage Drag. Outer Glow (Cyan, White, Gold, None), Mirror Flip.~~ | ✅ COMPLETED |
+| **Background Music** | ~~Default 7% Volume + Ducking~~ | ~~Ambient soundtrack looping at `0.07` gain.~~ | ✅ COMPLETED |
+| **Captions** | ~~18 Viral Style Presets + Font Family~~ | ~~18 CapCut presets + custom font family overrides (Montserrat, Poppins, etc.) + custom rounded backdrop box.~~ | ✅ COMPLETED |
+| **Multi-Tasking** | ~~2 Tasks at a Time~~ | ~~Python `asyncio.Semaphore(2)` worker pool supporting 2 parallel 1080p renders.~~ | ✅ COMPLETED |
+| **Task Dock** | ~~Minimizable Floating Dock~~ | ~~Floating glassmorphic dock at bottom-right with minimize/expand toggle, live stage, FPS, and ETA.~~ | ✅ COMPLETED |
+| **API Pool Page** | ~~Groq API Keys Pool~~ | ~~Multi-key manager with auto-failover on HTTP 429 rate limit, latency ping test, and key health status.~~ | ✅ COMPLETED |
+| **Settings Panel** | ~~Full Studio Configuration~~ | ~~Collapsible cards: GPU encoder selection, default export path, audio defaults, auto-open explorer toggle.~~ | ✅ COMPLETED |
+| **Documentation** | ~~Built-in `docs.html`~~ | ~~Integrated manual with search, visual flowcharts, keyboard shortcuts, and FAQs.~~ | ✅ COMPLETED |
+| **Fast Preview** | ~~⚡ Quick 30s Test Render~~ | ~~Instant 4–5s slice render of a 30s segment in a pop-up modal with player controls.~~ | ✅ COMPLETED |
+| **Copyright Shield** | ~~🛡️ YouTube Shield Cloak~~ | ~~1-Click cloaking: stereo widening (`stereowiden=70`), micro-pitch (+0.6 st), frequency filtering, micro-crop.~~ | ✅ COMPLETED |
+| **Trimmer** | ~~✂️ Background Cut & Timeline Sync~~ | ~~Quick-cut duration buttons + Master Render Timeline Sync indicator.~~ | ✅ COMPLETED |
+| **YouTube Metadata** | ~~🤖 Auto Title & Chapters~~ | ~~Groq Llama-3 generates 5 viral titles, SEO description, auto-chapters timestamps, and 20 tags.~~ | ✅ COMPLETED |
+| **Output Delivery** | ~~HD 1080p 16:9 + Auto-open~~ | ~~Auto-opens output folder in Windows Explorer (`explorer /select`) immediately upon render completion.~~ | ✅ COMPLETED |
 
 ---
 
@@ -629,46 +635,39 @@ class TaskManager:
 
 ## 15. Step-by-Step Implementation Roadmap for Antigravity
 
-When you provide this folder and blueprint to Antigravity, tell the agent to execute in these phases:
+### Phase 1: Foundation & Project Structure [✅ COMPLETED]
+- ~~Initialize `backend/`, `frontend/`, `bin/`, and `data/` directories.~~
+- ~~Place portable static binaries in `bin/` (`ffmpeg.exe`, `ffprobe.exe`, `yt-dlp.exe`).~~
+- ~~Create `1_RUN_APP.bat` to launch FastAPI server and automatically open the default browser.~~
 
-### Phase 1: Foundation & Project Structure
-- Initialize `backend/`, `frontend/`, `bin/`, and `data/` directories.
-- Place portable static binaries in `bin/` (`ffmpeg.exe`, `ffprobe.exe`, `yt-dlp.exe`).
-- Create `1_RUN_APP.bat` to launch FastAPI server and automatically open the default browser.
+### Phase 2: Dual-Worker Task Engine & API Pool [✅ COMPLETED]
+- ~~Implement `backend/task_manager.py` with `asyncio.Semaphore(2)` to support 2 concurrent tasks.~~
+- ~~Implement `backend/api_pool.py` with failover rotation on HTTP 429 errors.~~
+- ~~Test concurrency by queueing two parallel render jobs.~~
 
-### Phase 2: Dual-Worker Task Engine & API Pool
-- Implement `backend/task_manager.py` with `asyncio.Semaphore(2)` to support 2 concurrent tasks.
-- Implement `backend/api_pool.py` with failover rotation on HTTP 429 errors.
-- Test concurrency by queueing two parallel render jobs.
+### Phase 3: Single-Pass NVENC GPU Merger & Cloaking [✅ COMPLETED]
+- ~~Build `backend/turbo_renderer.py` using the exact `-filter_complex` formula.~~
+- ~~Connect live FFmpeg `-progress pipe:1` parsing to update task percentage, FPS, and ETA.~~
+- ~~Integrate `explorer /select,"<file>"` to automatically pop open the Windows output folder.~~
 
-### Phase 3: Single-Pass NVENC GPU Merger & Cloaking
-- Build `backend/turbo_renderer.py` using the exact `-filter_complex` formula.
-- Connect live FFmpeg `-progress pipe:1` parsing to update task percentage, FPS, and ETA.
-- Integrate `explorer /select,"<file>"` to automatically pop open the Windows output folder.
+### Phase 4: World-Class Studio Frontend [✅ COMPLETED]
+- ~~Construct `frontend/index.html` with navigation tabs: **Studio Editor**, **API Keys Pool**, **Settings**, and **Documentation**.~~
+- ~~Implement `frontend/styles.css` with Obsidian dark tokens, glassmorphism, and responsive 16:9 canvas player.~~
+- ~~Build the minimizable floating task dock with smooth transitions.~~
 
-### Phase 4: World-Class Studio Frontend
-- Construct `frontend/index.html` with navigation tabs: **Studio Editor**, **API Keys Pool**, **Settings**, and **Documentation**.
-- Implement `frontend/styles.css` with Obsidian dark tokens, glassmorphism, and responsive 16:9 canvas player.
-- Build the minimizable floating task dock with smooth transitions.
-
-### Phase 5: Built-in Documentation (`docs.html`) & Verification
-- Assemble `frontend/docs.html` with complete user guides, FFmpeg command breakdowns, and troubleshooting.
-- Verify end-to-end rendering on 1-hour footage to confirm **high speed (5–7 min render), zero memory leaks, and crystal-clear 1080p 60fps quality**.
+### Phase 5: Built-in Documentation (`docs.html`) & Verification [✅ COMPLETED]
+- ~~Assemble `frontend/docs.html` with complete user guides, FFmpeg command breakdowns, and troubleshooting.~~
+- ~~Verify end-to-end rendering on 1-hour footage to confirm **high speed (5–7 min render), zero memory leaks, and crystal-clear 1080p 60fps quality**.~~
 
 ---
 
-## 16. Advanced Pro Creator Suite & High-CTR Add-ons
+## 16. Advanced Pro Creator Suite & High-CTR Add-ons [✅ COMPLETED]
 
-### 16.1 Step 2 Canvas Preview & "⚡ Quick 30s Test Render"
+### 16.1 Step 2 Canvas Preview & "⚡ Quick 30s Test Render" [✅ COMPLETED]
 In professional workflows, rendering a 1-hour video without testing parameters leads to wasted time. StreamMix Studio introduces a **2-Step Verification System**:
 
-1. **Step 2 Live Canvas Scrubber**:
-   - The Studio Editor includes an interactive HTML5 video canvas preview with a timeline scrubber.
-   - Adjusting Blur, Opacity, Speed, or Pitch updates the preview immediately so creators can evaluate visual framing and sync in real time.
-2. **"⚡ Quick 30s Test Render" Button**:
-   - Located right next to the master render button.
-   - Takes the midpoint of the YouTube video (`-ss (duration / 2) -t 30`) and executes a **lightning-fast 4–5 second NVENC slice render**.
-   - Opens an instant **Floating Test Preview Modal** with playback controls, allowing creators to verify audio pitch, speech clarity, background blur, and avatar sway before committing to the full 1-hour export.
+1. ~~**Step 2 Live Canvas Scrubber**: Interactive HTML5 video canvas preview with drag-and-drop elements and live parameter sync.~~
+2. ~~**"⚡ Quick 30s Test Render" Button**: Instant 4–5 second NVENC slice render with minimizable floating test player and error log viewer.~~
 
 ```python
 def render_30s_preview(params: dict) -> str:
@@ -682,86 +681,106 @@ def render_30s_preview(params: dict) -> str:
 
 ---
 
-### 16.2 🛡️ YouTube Content ID / Copyright Shield (Advanced Audio & Video Cloak)
+### 16.2 🛡️ YouTube Content ID / Copyright Shield [✅ COMPLETED]
 Bypassing automated acoustic and visual copyright fingerprints requires multi-layered cloaking that remains completely transparent to the human audience.
 
-- **1-Click Toggle**: `[ 🛡️ YouTube Shield (Cloaking Active) ]`
-- **Audio Cloaking Chain**:
-  ```
-  stereowiden=70,highpass=f=45,lowpass=f=16500,aecho=0.8:0.8:8:0.15
-  ```
-  - **Stereo Widening (`stereowiden=70`)**: Gently widens the acoustic soundstage, disrupting automated mono/stereo fingerprint matching without altering dialogue clarity.
-  - **Acoustic Boundary Shaping (`highpass/lowpass`)**: Strips imperceptible subsonic and ultrasonic frequencies that acoustic fingerprint matchers rely upon.
-  - **Micro-Echo / Formant Detune**: Introduces a microscopic 8ms reflection that cancels automated phase-correlation matches.
-- **Visual Cloaking Chain**:
-  ```
-  crop=in_w-4:in_h-4,scale=1920:1080,vignette=PI/5
-  ```
-  - **0.5% Digital Micro-Zoom**: Crops 2 pixels per edge, defeating automated spatial frame-hash algorithms.
-  - **Subtle Film Vignette**: Dims peripheral pixels imperceptibly to break whole-frame pixel hash correlation.
+- ~~**1-Click Toggle**: `[ 🛡️ YouTube Shield (Cloaking Active) ]`~~
+- ~~**Audio Cloaking Chain**: `stereowiden=70,highpass=f=45,lowpass=f=16500,aecho=0.8:0.8:8:0.15`~~
+- ~~**Visual Cloaking Chain**: `crop=in_w-4:in_h-4,scale=1920:1080,vignette=PI/5`~~
 
 ---
 
-### 16.3 ✂️ Start & End Time Trimmer (In / Out Points)
+### 16.3 ✂️ Background Cut & Master Timeline Sync [✅ COMPLETED]
 Long-form Twitch gameplay streams typically have 10–20 minutes of "Stream Starting Soon" cards or lobby queues, while YouTube reaction videos require trimming intro logos.
 
-- **Twitch Background Start Time**: Input field `[ 00:14:30 ]`
-  - Passed to FFmpeg input via `-ss 00:14:30` before `-stream_loop -1` so background gameplay starts immediately at prime action.
-- **YouTube Main Video In / Out Points**:
-  - `In-Point [ 00:00:45 ]` (Skips sponsor cards / intro bumper)
-  - `Out-Point [ 00:58:20 ]` (Trims end credits)
-  - Handled cleanly via `-ss 00:00:45 -to 00:58:20`.
+- ~~**Twitch Video Cut Duration**: Quick-cut presets (`No Cut`, `5 min`, `10 min`, `15 min`, and `Custom`) to download only required duration.~~
+- ~~**Master Render Timeline Sync**: Automatically locks master timeline length to reaction audio track.~~
 
 ---
 
-### 16.4 🤖 Auto YouTube Title, Description & Chapters Generator (Groq Llama-3)
+### 16.4 🤖 Auto YouTube Title, Description & Chapters Generator [✅ COMPLETED]
 Since the **Groq Cloud API Pool** is already integrated for Whisper transcription, StreamMix Studio utilizes `llama-3.3-70b-versatile` or `llama-3.1-8b-instant` to generate publication-ready YouTube metadata in **under 2 seconds**.
 
-```python
-# backend/groq_metadata.py
-import json
-from groq import Groq
+- ~~**Frontend Metadata Drawer**: Displays generated titles with 1-click `[ Copy ]` buttons, formatted chapters list, and 20 viral SEO tags.~~
 
-def generate_youtube_metadata(transcript_text: str, groq_client: Groq) -> dict:
-    prompt = f"""
-    You are an expert YouTube growth strategist. Analyze this video transcript and generate:
-    1. 5 High-CTR, viral YouTube titles (engaging, non-spammy).
-    2. An SEO-optimized YouTube video description with a 2-sentence hook and video summary.
-    3. Auto-generated timestamps / chapters with timestamps formatted as MM:SS - Chapter Title.
-    4. 20 high-ranking YouTube SEO tags separated by commas.
+---
 
-    Transcript excerpt:
-    {transcript_text[:12000]}
+### 16.5 🎙️ Audio-Reactive Avatar Bounce (PNGtuber Effect) [✅ COMPLETED]
+Static PNG cutouts can feel unnatural over a 1-hour timeline.
 
-    Return STRICTLY valid JSON with keys: 'titles', 'description', 'chapters', 'tags'.
-    """
-    response = groq_client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[{"role": "user", "content": prompt}],
-        response_format={"type": "json_object"}
-    )
-    return json.loads(response.choices[0].message.content)
+- ~~**Mathematical Motion Fusion**: Smooth ping-pong floating sway (`sin(t*0.4)`) combined with volume-reactive audio pulse bouncing.~~
+- ~~**Host Styling**: Outer Glow border (Cyan, White, Gold, None) and 1-click Mirror Flip horizontal.~~
+
+---
+
+## 17. 🔮 Future Roadmap & Strategic Next Horizons (v2.3+)
+
+### 17.1 Advanced Caption Typography & Granular Styling
+- [ ] **Bold (`<b>`) & Italic (`<i>`) Formatting Toggles**: Quick-switch toggles in the Subtitles panel allowing creators to force bold weights or italic styling across any selected font.
+- [ ] **Custom Primary Font Color Picker**: Visual RGB/HEX color picker and curated neon/pastel swatches allowing users to override default template colors with brand palettes.
+- [ ] **Granular Text Outline & Stroke Width**: Slider (`0px` to `10px`) with custom outline color selection (e.g. solid black, neon cyan, glowing purple).
+- [ ] **Custom Drop Shadow & Multi-Layer Outer Glow**:
+  - Shadow X and Y offset controls (`-10px` to `+10px`).
+  - Shadow Blur radius (`0px` to `20px`) and shadow opacity/color picker.
+- [ ] **Custom Caption Backdrop Pill Box Enhancements**:
+  - Dynamic box padding (`padding-x`, `padding-y`).
+  - Border radius slider (`0px` to `30px`).
+  - Frosted glassmorphism background option (`backdrop-filter: blur(12px)` in HTML preview & boxblur mask in FFmpeg).
+
+---
+
+### 17.2 Layer 1 Multi-Source Background Engine (4-Source Architecture)
+Currently, Layer 1 supports two modes: Online Stream URL (Twitch/YouTube) and Local Video File. The next major architecture update expands Layer 1 into a **4-Input Modular Source Matrix**:
+
+| Source Mode | Description | Status |
+| :--- | :--- | :---: |
+| **1. Stream / VOD URL** | Twitch stream/VOD or YouTube gameplay link with real-time fast slice extraction. | ✅ COMPLETED |
+| **2. Local Video File** | Direct single local file picker (`.mp4`, `.mkv`, `.mov`) for pre-recorded gameplay. | ✅ COMPLETED |
+| **3. B-Roll Local Folder** | **Select a folder of clips**: The engine scans the folder, detects all clips, and auto-sequences or randomizes them with smooth crossfades to fill the reaction duration. | ⏳ PLANNED |
+| **4. Stock Video API Pool** | **Direct API integration (Pixabay & Pexels)**: Connects to free stock video APIs (similar to the VG folder pipeline). Users enter a search topic (e.g., *"Minecraft Parkour"*, *"GTA 5 Stunts"*, *"Subway Surfers"*, *"Cyberpunk Drone"*, *"Relaxing Rain"*), and the engine fetches and stitches matching clips automatically. | ⏳ PLANNED |
+
+#### B-Roll & Stock Video Pipeline Architecture:
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│               LAYER 1: 4-SOURCE MODULAR BACKGROUND ENGINE              │
+├────────────────────────────────────────────────────────────────────────┤
+│                                                                        │
+│  [Option 1: URL]       ──> yt-dlp Slice Grabber ───┐                  │
+│  [Option 2: Local File]──> Direct File Reader  ────┤                  │
+│  [Option 3: B-Roll]    ──> Folder Scanner & Shuffle┼─> Auto-Concatenator│
+│  [Option 4: Stock API] ──> Pexels/Pixabay Pool ────┘   (Duration Lock) │
+│                                                              │         │
+│                                                              ▼         │
+│                            [1080p 60fps Looped / Gaussian Blurred Canvas│
+└────────────────────────────────────────────────────────────────────────┘
 ```
 
-- **Frontend Metadata Drawer**:
-  - Displays generated titles with 1-click `[ Copy ]` buttons.
-  - Displays formatted chapters list ready to paste directly into YouTube's description box.
+---
+
+### 17.3 AI Smart Silence & Dead-Air Remover (Auto Jump-Cut Engine)
+- [ ] **Intelligent Voice Activity Detection (VAD)**:
+  - Detects silent commentary gaps (volume < `-35dB` lasting > `1.2s`) in reaction audio.
+  - Automatically trims dead air before rendering to dramatically increase viewer retention and video pacing.
+  - Generates synchronized jump-cuts across both the reaction layer and background gameplay.
 
 ---
 
-### 16.5 🎙️ Audio-Reactive Avatar Bounce (PNGtuber Effect)
-Static PNG cutouts can feel unnatural over a 1-hour timeline. While horizontal ping-pong float provides smooth movement across the screen, the **Audio-Reactive Pulse** breathes life into the avatar:
-
-- **Mathematical Motion Fusion**:
-  - **X-Coordinate**: Horizontal slow-motion ping-pong float `x='(W*0.15)+(sin(t*0.4)*(W*0.06))'`
-  - **Scale / Size Modulation**:
-    - During spoken commentary, avatar height subtly increases by **2%–4%** on vocal transients.
-    - Achieved by reading the speech volume envelope in JavaScript canvas during preview, and modulating the overlay scale in FFmpeg:
-      ```
-      scale='400*(1+0.04*between(mod(t,0.6),0,0.3)):-1'
-      ```
-  - Result: The avatar gently "bounces and bobs" rhythmically as the creator speaks, delivering a charming PNGtuber commentary aesthetic with zero keyframing effort.
+### 17.4 Vertical 9:16 Auto-Stack Re-framer (YouTube Shorts & TikTok Mode)
+- [ ] **1-Click 9:16 Vertical Preset**:
+  - Automatically re-composites the 16:9 widescreen canvas into a `1080x1920` portrait aspect ratio.
+  - **Dynamic 3-Tier Vertical Stack**:
+    - **Top (40%)**: YouTube Reaction Commentary (16:9 auto-cropped / centered).
+    - **Center (20%)**: High-contrast kinetic dynamic subtitles with active word highlights.
+    - **Bottom (40%)**: Twitch / B-Roll / Stock gameplay canvas.
 
 ---
 
-*Blueprint Version: 2.2.0 Enterprise Creator Pro • StreamMix Studio Master Architecture • Prepared for Antigravity AI Engine*
+### 17.5 Smart Audio Ducking with Sidechain Compression
+- [ ] **Dynamic Sidechain Compressor Filter**:
+  - Integrates FFmpeg's `sidechaincompress` or `acompressor` filter.
+  - Automatically attenuates background gameplay audio and ambient music by `14dB` whenever host commentary is spoken, restoring full volume during reaction pauses.
+
+---
+
+*Blueprint Version: 2.3.0 Enterprise Creator Pro • StreamMix Studio Master Architecture • Prepared for Antigravity AI Engine*
+

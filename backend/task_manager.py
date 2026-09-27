@@ -137,12 +137,14 @@ class StreamMixTaskManager:
                         prog_state["twitch_pct"] = round(pct, 1)
                         prog_state["twitch_speed"] = speed
                         update_parallel_stage()
+                    twitch_cut_sec = float(params.get("twitch_cut_sec", 0.0) or 0.0)
+                    dl_dur = twitch_cut_sec if twitch_cut_sec > 0 else ((target_duration + 5.0) if target_duration else None)
                     return await asyncio.to_thread(
                         download_stream,
                         url=twitch_val,
                         output_prefix=prefix,
                         start_seconds=twitch_start,
-                        duration_seconds=(target_duration + 5.0) if target_duration else None,
+                        duration_seconds=dl_dur,
                         progress_callback=dl_twitch_prog
                     )
 

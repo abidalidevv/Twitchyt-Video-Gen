@@ -1138,6 +1138,7 @@ function collectPayload(isPreview = false) {
     twitch_bg_path: twitchPath,
     youtube_main_path: ytPath,
     twitch_start_sec: parseTimeToSeconds(document.getElementById('twitch-start-time')?.value),
+    twitch_cut_sec: (parseInt(document.getElementById('twitch-cut-duration')?.value) || 0) * 60,
     yt_start_sec: ytInSec,
     yt_end_sec: ytEndSec,
     bg_blur: parseInt(document.getElementById('bg-blur')?.value) || 0,

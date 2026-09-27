@@ -191,7 +191,7 @@ def render_stream_mix(
             cap_box_y = int(float(custom_y))
         else:
             cap_box_x = (1920 - bw) // 2
-            cap_box_y = 778
+            cap_box_y = 650
 
         cap_box_x = max(0, min(1920 - bw, cap_box_x))
         cap_box_y = max(0, min(1080 - bh, cap_box_y))

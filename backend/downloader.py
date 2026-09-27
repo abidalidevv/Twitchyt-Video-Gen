@@ -81,13 +81,18 @@ def fetch_url_info(url: str) -> Dict[str, Any]:
     ydl_opts = {
         "quiet": True,
         "no_warnings": True,
-        "skip_download": True
+        "skip_download": True,
+        "extractor_args": {
+            "youtube": {
+                "player_client": ["android", "web"]
+            }
+        }
     }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=False)
         return {
             "title": info.get("title", "Online Stream"),
-            "duration": float(info.get("duration", 0.0)),
+            "duration": float(info.get("duration", 0.0) or 0.0),
             "thumbnail": info.get("thumbnail"),
             "url": url,
             "is_local": False,
@@ -127,7 +132,7 @@ def download_stream(
     is_twitch = "twitch.tv" in url.lower()
 
     ydl_opts = {
-        "format": "best[height<=1080]/bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best" if is_twitch else "bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080][ext=mp4]/best",
+        "format": "best[height<=1080]/bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best" if is_twitch else "bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080]/best",
         "outtmpl": str(output_target),
         "quiet": True,
         "no_warnings": True,
@@ -139,6 +144,11 @@ def download_stream(
         "fragment_retries": 10,
         "buffersize": 1024 * 1024 * 16,
         "http_chunk_size": 10485760,
+        "extractor_args": {
+            "youtube": {
+                "player_client": ["android", "web"]
+            }
+        }
     }
 
     # Slicing optimization: if duration is specified, slice on the fly!

@@ -250,19 +250,12 @@
                   <input type="hidden" id="twitch-cut-duration" value="0">
                 </div>
 
-                <!-- Layer 1 Parameters: Start From + Audio Mute side-by-side -->
-                <div class="half-row">
-                  <div class="half-field">
-                    <label class="slider-label"><i class="fas fa-play-circle"></i> Start From</label>
-                    <input type="text" id="twitch-start-time" value="00:00:00" placeholder="00:00:00" class="text-input code-font">
-                    <span class="field-hint">HH:MM:SS</span>
-                  </div>
-                  <div class="half-field">
-                    <label class="slider-label"><i class="fas fa-volume-mute"></i> Audio Mute</label>
-                    <div class="toggle-pill" style="margin-top: 8px;">
-                      <input type="checkbox" id="twitch-mute" checked>
-                      <span>100% Mute</span>
-                    </div>
+                <!-- Layer 1 Parameters: Audio Mute & Hidden Start Time -->
+                <div style="margin-top: 10px; display: flex; align-items: center; justify-content: flex-end;">
+                  <input type="hidden" id="twitch-start-time" value="00:00:00">
+                  <div class="toggle-pill">
+                    <input type="checkbox" id="twitch-mute" checked>
+                    <span>100% Mute Audio</span>
                   </div>
                 </div>
               </div>
@@ -312,31 +305,22 @@
 
                 <div id="yt-info-badge" class="stream-info-badge hidden"></div>
 
-                <!-- YouTube Reaction Gaussian Blur Slider -->
-                <div class="slider-group">
-                  <div class="slider-label-row">
-                    <label class="slider-label"><i class="fas fa-tint"></i> Reaction Gaussian Blur Sigma</label>
-                    <span class="slider-value-badge" id="yt-blur-val">0px</span>
+                <!-- Layer 2: Reaction Blur + Reaction Opacity side-by-side (50/50) -->
+                <div class="half-row">
+                  <div class="half-field">
+                    <div class="slider-label-row">
+                      <label class="slider-label"><i class="fas fa-tint"></i> Gaussian Blur Sigma</label>
+                      <span class="slider-value-badge" id="yt-blur-val">0px</span>
+                    </div>
+                    <input type="range" id="yt-blur" min="0" max="40" value="0" class="range-slider">
                   </div>
-                  <input type="range" id="yt-blur" min="0" max="40" value="0" class="range-slider">
-                </div>
-
-                <!-- YouTube Main Opacity Slider -->
-                <div class="slider-group">
-                  <div class="slider-label-row">
-                    <label class="slider-label"><i class="fas fa-adjust"></i> Main Reaction Video Opacity</label>
-                    <span class="slider-value-badge" id="yt-opacity-val">75% (Clear Reaction)</span>
+                  <div class="half-field">
+                    <div class="slider-label-row">
+                      <label class="slider-label"><i class="fas fa-adjust"></i> Reaction Opacity</label>
+                      <span class="slider-value-badge" id="yt-opacity-val">75% (Clear Reaction)</span>
+                    </div>
+                    <input type="range" id="yt-opacity" min="10" max="100" value="75" class="range-slider">
                   </div>
-                  <input type="range" id="yt-opacity" min="10" max="100" value="75" class="range-slider">
-                </div>
-
-                <!-- Auto-Synced Duration Display -->
-                <div class="auto-sync-banner">
-                  <div class="sync-check">
-                    <i class="fas fa-film text-primary"></i>
-                    <span><strong>Reaction Master Duration</strong> (Auto-syncs full Twitch background)</span>
-                  </div>
-                  <span id="yt-detected-len" class="sync-len-pill">Auto</span>
                 </div>
 
                 <!-- Layer 2: Video Speed + Voice Pitch side-by-side (50/50) -->
@@ -383,6 +367,18 @@
                   <p class="shield-desc">
                     Acoustic micro-pitch shift (+0.6 semitones), stereo stage widening (70%), frequency filtering (45Hz–16.5kHz), and micro-edge crop to prevent automated copyright strikes.
                   </p>
+                </div>
+
+                <!-- Master Render Duration Indicator (Below Anti-Content-ID Shield) -->
+                <div class="auto-sync-banner" style="margin-top: 14px;">
+                  <div class="sync-check">
+                    <i class="fas fa-clock text-accent"></i>
+                    <div>
+                      <span style="font-weight: 700; color: var(--text-main);">Master Render Timeline Sync</span>
+                      <p style="font-size: 0.72rem; color: var(--text-muted); margin: 0;">Output video length automatically matches reaction master audio track</p>
+                    </div>
+                  </div>
+                  <span id="yt-detected-len" class="sync-len-pill">Auto</span>
                 </div>
               </div>
             </div>

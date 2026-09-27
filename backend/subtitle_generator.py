@@ -409,14 +409,14 @@ def create_ass_subtitles(
     elif custom_x is not None:
         bw = float(custom_w or 1152)
         center_x = int(float(custom_x) + (bw / 2.0))
-        center_y = 810
+        center_y = 760
     elif custom_y is not None:
         bh = float(custom_h or 280)
         center_x = 960
         center_y = int(float(custom_y) + (bh / 2.0))
     else:
         center_x = 960
-        center_y = 810
+        center_y = 760
 
     center_x = max(80, min(1840, center_x))
     center_y = max(60, min(1020, center_y))

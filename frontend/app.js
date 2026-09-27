@@ -433,8 +433,25 @@ window.resetStageLayout = function() {
   STATE.customLayout.caption.y = null;
   STATE.customLayout.caption.w = null;
   STATE.customLayout.caption.h = null;
+  STATE.captionPosition = 'bottom';
+  const captionBox = document.getElementById('stage-caption-box');
+  if (captionBox) {
+    captionBox.style.width = '60%';
+    captionBox.style.height = 'auto';
+    captionBox.style.left = '20%';
+    captionBox.style.top = '60%';
+  }
+  const avatarBox = document.getElementById('stage-avatar-box');
+  if (avatarBox) {
+    avatarBox.style.top = 'auto';
+    avatarBox.style.bottom = '0%';
+  }
+  document.querySelectorAll('#captions-layer-controls .btn-option').forEach(b => {
+    if (b.id && b.id.startsWith('cap-pos-')) b.classList.remove('active');
+  });
+  document.getElementById('cap-pos-bottom')?.classList.add('active');
   syncStage();
-  showToast('Stage layout reset to default alignments.', 'info');
+  showToast('Stage layout reset to safe defaults.', 'info');
 };
 
 // Synchronize all Visual Elements on the 16:9 Canvas
@@ -551,10 +568,11 @@ function syncStage() {
     } else {
       captionBox.style.left = '20%';
       captionBox.style.width = '60%';
+      captionBox.style.height = 'auto';
       if (STATE.captionPosition === 'center') {
         captionBox.style.top = '42%';
       } else {
-        captionBox.style.top = '72%';
+        captionBox.style.top = '60%';
       }
     }
   }
@@ -671,6 +689,15 @@ window.setCaptionPresetPos = function(pos) {
   STATE.captionPosition = pos;
   STATE.customLayout.caption.x = null;
   STATE.customLayout.caption.y = null;
+  STATE.customLayout.caption.w = null;
+  STATE.customLayout.caption.h = null;
+  const captionBox = document.getElementById('stage-caption-box');
+  if (captionBox) {
+    captionBox.style.width = '60%';
+    captionBox.style.height = 'auto';
+    captionBox.style.left = '20%';
+    captionBox.style.top = (pos === 'center') ? '42%' : '60%';
+  }
   document.querySelectorAll('#captions-layer-controls .two-col .btn-option').forEach(b => b.classList.remove('active'));
   document.getElementById(`cap-pos-${pos}`)?.classList.add('active');
   syncStage();

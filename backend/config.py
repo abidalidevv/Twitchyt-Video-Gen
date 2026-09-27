@@ -31,6 +31,29 @@ if bin_str not in os.environ.get("PATH", ""):
     os.environ["PATH"] = bin_str + os.pathsep + os.environ.get("PATH", "")
 
 
+def ensure_bundled_fonts():
+    """Ensures required viral fonts (Poppins Black, Outfit ExtraBold, Montserrat Black, etc.) are present in data/fonts."""
+    font_urls = {
+        "Poppins.ttf": "https://fonts.gstatic.com/s/poppins/v24/pxiByp8kv8JHgFVrLBT5V1s.ttf",
+        "Outfit.ttf": "https://fonts.gstatic.com/s/outfit/v15/QGYyz_MVcBeNP4NjuGObqx1XmO1I4bCyC4E.ttf",
+        "Montserrat.ttf": "https://fonts.gstatic.com/s/montserrat/v31/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCvC70w-.ttf",
+        "Montserrat-Bold.ttf": "https://fonts.gstatic.com/s/montserrat/v31/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCvC70w-.ttf",
+        "Montserrat-Black.ttf": "https://fonts.gstatic.com/s/montserrat/v31/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCvC70w-.ttf"
+    }
+    import urllib.request
+    for fname, url in font_urls.items():
+        dest = FONTS_DIR / fname
+        if not dest.exists() or dest.stat().st_size < 10000:
+            try:
+                req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+                with urllib.request.urlopen(req, timeout=5) as resp, open(dest, "wb") as f:
+                    f.write(resp.read())
+            except Exception:
+                pass
+
+ensure_bundled_fonts()
+
+
 
 def log_error(module: str, message: str, exc: Optional[Exception] = None, task_id: Optional[str] = None):
     """Writes detailed timestamped error messages and tracebacks to data/logs/error.log."""

@@ -12,16 +12,17 @@ from .config import TEMP_DIR, log_error
 from .api_pool import groq_pool
 
 # ─── PRESET STYLES (100% 1:1 Palette Matching with Frontend Canvas) ────────────
+# ─── PRESET STYLES (100% 1:1 Palette Matching with Frontend Canvas) ────────────
 # Colors stored in ASS BGR format: &H00BBGGRR&
 PRESET_STYLES = {
     "capcut_yellow": {
         "name": "CapCut Viral Yellow",
-        "font_name": "Montserrat",
+        "font_name": "Montserrat Black",
         "primary_color":   "&H00FFFFFF",
         "highlight_color": "&H0000FFFF",   # #ffff00 Yellow BGR
         "outline_color":   "&H00000000",
         "shadow_color":    "&H9900CCFF",   # #ffcc00 Yellow glow
-        "outline_width": 3.8,
+        "outline_width": 4.0,
         "shadow_dist": 2.6,
         "glow_blur": 8,
         "bold": 1, "uppercase": True, "margin_v": 120
@@ -52,13 +53,13 @@ PRESET_STYLES = {
     },
     "ali_abdaal": {
         "name": "Ali Abdaal Aesthetic",
-        "font_name": "Poppins",
+        "font_name": "Poppins Black",
         "primary_color":   "&H00FFFFFF",
         "highlight_color": "&H00F8BD38",   # #38bdf8 Electric Sky Blue BGR
         "outline_color":   "&H001A1A1A",
         "shadow_color":    "&H99C78402",   # #0284c7 Blue glow
-        "outline_width": 3.6,
-        "shadow_dist": 2.4,
+        "outline_width": 3.8,
+        "shadow_dist": 2.5,
         "glow_blur": 8,
         "bold": 1, "uppercase": True, "margin_v": 120
     },
@@ -88,12 +89,12 @@ PRESET_STYLES = {
     },
     "podcast_pill": {
         "name": "Vox / Podcast Box",
-        "font_name": "Outfit",
+        "font_name": "Outfit ExtraBold",
         "primary_color":   "&H00FFFFFF",
         "highlight_color": "&H00FFE500",   # #00e5ff Cyan BGR
         "outline_color":   "&H00111111",
         "shadow_color":    "&H99D8B400",   # #00b4d8 Cyan glow
-        "outline_width": 3.6,
+        "outline_width": 3.8,
         "shadow_dist": 2.6,
         "glow_blur": 8,
         "bold": 1, "uppercase": True, "margin_v": 120
@@ -112,12 +113,12 @@ PRESET_STYLES = {
     },
     "neon_cyber": {
         "name": "Neon Cyber Glow",
-        "font_name": "Montserrat",
+        "font_name": "Montserrat Black",
         "primary_color":   "&H00FFFF00",   # #00ffff Cyan base BGR
         "highlight_color": "&H00FF00FF",   # #ff00ff Magenta active BGR
         "outline_color":   "&H00401000",
         "shadow_color":    "&H99EC55BF",   # #bf55ec Purple glow
-        "outline_width": 3.8,
+        "outline_width": 4.0,
         "shadow_dist": 3.2,
         "glow_blur": 12,
         "bold": 1, "uppercase": True, "margin_v": 120
@@ -153,7 +154,7 @@ PRESET_STYLES = {
         "highlight_color": "&H00FFFFFF",
         "outline_color":   "&H00151515",
         "shadow_color":    "&H99B8A394",
-        "outline_width": 2.6,
+        "outline_width": 2.8,
         "shadow_dist": 2.0,
         "glow_blur": 0,
         "bold": 1, "uppercase": True, "margin_v": 115
@@ -172,7 +173,7 @@ PRESET_STYLES = {
     },
     "midnight_blue": {
         "name": "Midnight Blue Neon",
-        "font_name": "Montserrat",
+        "font_name": "Montserrat Black",
         "primary_color":   "&H00FFFFFF",
         "highlight_color": "&H00F8BD38",   # #38bdf8 Electric Sky Blue BGR
         "outline_color":   "&H004A150A",
@@ -208,7 +209,7 @@ PRESET_STYLES = {
     },
     "cosmic_violet": {
         "name": "Cosmic Deep Violet",
-        "font_name": "Montserrat",
+        "font_name": "Montserrat Black",
         "primary_color":   "&H00FFFFFF",
         "highlight_color": "&H00FC84C0",   # #c084fc Lavender BGR
         "outline_color":   "&H00350B40",
@@ -231,6 +232,39 @@ PRESET_STYLES = {
         "bold": 1, "uppercase": True, "margin_v": 120
     }
 }
+
+# Accurate DirectWrite GDI font family mapping for libass in FFmpeg
+ASS_FONT_MAP = {
+    "poppins":          "Poppins Black",
+    "poppins bold":     "Poppins Black",
+    "poppins black":    "Poppins Black",
+    "outfit":           "Outfit ExtraBold",
+    "outfit bold":      "Outfit ExtraBold",
+    "outfit extrabold": "Outfit ExtraBold",
+    "montserrat":       "Montserrat Black",
+    "montserrat bold":  "Montserrat Black",
+    "montserrat black": "Montserrat Black",
+    "archivo black":    "Archivo Black",
+    "bangers":          "Bangers",
+    "luckiest guy":     "Luckiest Guy",
+    "cinzel":           "Cinzel",
+    "oswald":           "Oswald",
+    "inter":            "Inter",
+    "impact":           "Impact",
+    "arial black":      "Arial Black",
+    "courier new":      "Courier New",
+    "bebas neue":       "Bebas Neue",
+    "anton":            "Anton"
+}
+
+
+def resolve_ass_font_name(font_family: Optional[str], default_font: str = "Montserrat Black") -> str:
+    """Resolves font family override to exact bold face registered in libass."""
+    if not font_family or str(font_family).strip().lower() in ("default", "none", ""):
+        target = default_font
+    else:
+        target = str(font_family).strip()
+    return ASS_FONT_MAP.get(target.lower(), target)
 
 
 def sec_to_ass_time(sec: float) -> str:
@@ -345,34 +379,31 @@ def create_ass_subtitles(
     - VG-style zero-overlap cue resolver
     """
     style = PRESET_STYLES.get(preset_key, PRESET_STYLES["capcut_yellow"])
-    font_name = style["font_name"]
+    font_name = resolve_ass_font_name(font_family, style["font_name"])
 
-    # Font family override if selected by user
-    if font_family and str(font_family).strip() and str(font_family).strip().lower() != "default":
-        font_name = str(font_family).strip()
+    # ── Font size: Viral Scale with Strict Box Boundary Containment ───────────────
+    # Default large is 115px (comfortably fits 2-3 lines within user-drawn box)
+    size_map = {"small": 80, "medium": 95, "large": 115, "huge": 135}
+    base_fs = size_map.get(caption_size, 115)
 
-    # ── Font size: 2x Viral Scale Matching Director Preview Canvas (145px Large) ──
-    size_map = {"small": 105, "medium": 125, "large": 145, "huge": 175}
-    base_fs = size_map.get(caption_size, 145)
-
-    # Dynamic scaling based on custom bounding box (maintaining large readability)
+    # Dynamic scaling based on custom bounding box (maintaining large readability without spillage)
     if custom_w is not None and custom_h is not None:
         box_w = float(custom_w)
         box_h = float(custom_h)
-        # Allow 3-4 stacked lines with comfortable vertical line spacing
-        max_fs_by_h = box_h / 2.8
-        max_fs_by_w = box_w / 5.5
+        # Guarantee 2-line captions stay strictly inside bounding box with safe padding
+        max_fs_by_h = (box_h * 0.82) / (2.0 * 1.25)
+        max_fs_by_w = (box_w * 0.90) / (14.0 * 0.60)
         capped_fs = min(max_fs_by_h, max_fs_by_w)
-        ass_font_size = int(min(base_fs, max(95, capped_fs)))
+        ass_font_size = int(min(base_fs, max(45, capped_fs)))
     else:
         box_w = 1152.0
         box_h = 240.0
         ass_font_size = base_fs
 
-    # ── Outline & Shadow (Proportional to 145px viral typography) ───────────
-    ass_outline_w = round(max(5.2, style.get("outline_width", 3.8) * 1.4), 1)
-    ass_shadow_d  = round(max(3.8, style.get("shadow_dist", 2.8) * 1.4), 1)
-    glow_blur     = max(12, style.get("glow_blur", 8))
+    # ── Outline & Shadow (Proportional to viral typography) ──────────────────────
+    ass_outline_w = round(max(4.0, style.get("outline_width", 3.8) * 1.2), 1)
+    ass_shadow_d  = round(max(2.8, style.get("shadow_dist", 2.6) * 1.2), 1)
+    glow_blur     = max(8, style.get("glow_blur", 8))
 
     primary_c   = style["primary_color"]
     highlight_c = style["highlight_color"]
@@ -414,7 +445,7 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,{font_name},{ass_font_size},{primary_c},&H000000FF,{outline_c},{shadow_c},{bold},0,0,0,100,100,3.2,0,1,{ass_outline_w:.1f},{ass_shadow_d:.1f},2,50,50,120,1
+Style: Default,{font_name},{ass_font_size},{primary_c},&H000000FF,{outline_c},{shadow_c},{bold},0,0,0,100,100,2.5,0,1,{ass_outline_w:.1f},{ass_shadow_d:.1f},2,50,50,120,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -434,11 +465,11 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 "word":  txt.upper() if uppercase else txt
             })
 
-    chunks = group_words_into_phrases(shifted_words, max_words=words_per_group or 4)
+    # Short, punchy 2-3 word phrases for viral pace
+    chunks = group_words_into_phrases(shifted_words, max_words=words_per_group or 3)
 
     # Calculate line wrapping limits based on box width and font size
-    # At 145px font size, average char width is ~0.58 * font_size
-    line_char_limit = max(7, int((box_w * 0.90) / (ass_font_size * 0.58)))
+    line_char_limit = max(8, int((box_w * 0.88) / (ass_font_size * 0.60)))
     max_words_per_line = 2 if box_w < 700 else (3 if box_w < 1100 else 4)
 
     # Build raw cues with intelligent multi-line \N wrapping
@@ -463,6 +494,17 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         if cur_line:
             chunk_lines.append(cur_line)
 
+        # Calculate exact font size for this chunk to 100% guarantee no bounding box spill
+        num_chunk_lines = max(1, len(chunk_lines))
+        max_chunk_chars = max(
+            sum(len(str(chunk[idx].get("word", "")).strip()) for idx in l_idx) + len(l_idx) - 1
+            for l_idx in chunk_lines
+        )
+        chunk_max_h = int((box_h * 0.84) / (num_chunk_lines * 1.25))
+        chunk_max_w = int((box_w * 0.90) / (max(1, max_chunk_chars) * 0.60))
+        cue_fs = min(ass_font_size, chunk_max_h, chunk_max_w)
+        fs_override_tag = f"\\fs{cue_fs}" if cue_fs < ass_font_size else ""
+
         for active_idx, active_word in enumerate(chunk):
             is_last = (active_idx == len(chunk) - 1)
             t_start = chunk_start if active_idx == 0 else float(active_word["start"])
@@ -476,7 +518,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                     if idx == active_idx:
                         # Kinetic pop: highlight color + punchy scale bounce + keep glow blur
                         line_words.append(
-                            f"{{\\c{highlight_c}&{blur_tag}\\fscx126\\fscy126\\b1}}{raw_w}"
+                            f"{{\\c{highlight_c}&{blur_tag}\\fscx114\\fscy114\\b1}}{raw_w}"
                             f"{{\\c{primary_c}&\\fscx100\\fscy100\\b{bold}}}"
                         )
                     else:
@@ -490,6 +532,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 "start": t_start,
                 "end":   t_end,
                 "text":  cues_text,
+                "fs_tag": fs_override_tag,
                 "is_chunk_boundary": is_last
             })
 
@@ -530,8 +573,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         w_start = sec_to_ass_time(c_start)
         w_end   = sec_to_ass_time(c_end)
 
-        # Base position + glow on non-active words too (\\blur applies to outline glow)
-        base_tags = f"\\an5\\pos({center_x},{center_y}){blur_tag}"
+        # Base position + dynamic font size clamp + glow
+        cue_fs = raw_cues[i].get("fs_tag", "")
+        base_tags = f"\\an5\\pos({center_x},{center_y}){cue_fs}{blur_tag}"
         events.append(
             f"Dialogue: 0,{w_start},{w_end},Default,,0,0,0,,{{{base_tags}}}{raw_cues[i]['text']}"
         )

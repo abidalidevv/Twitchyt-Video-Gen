@@ -1355,9 +1355,7 @@ function initSliceModal() {
           const prog = task.progress ? task.progress.toFixed(1) : '0.0';
           const fps = task.fps || 0;
           if (statusText) statusText.textContent = `Rendering: ${prog}% | ${fps} FPS`;
-          if (pillLabel) {
-            pillLabel.innerHTML = `<i class="fas fa-bolt text-accent"></i> Slice: ${prog}% (${fps} FPS)`;
-          }
+          // Minimized pill status is centrally handled by updatePillMonitor with 3.8s calm cycling
         } else if (task.status === 'COMPLETED' || task.status === 'DONE') {
           clearInterval(pollInterval);
           if (statusText) statusText.textContent = 'Render Complete! 30s preview playing below:';
@@ -1414,6 +1412,7 @@ async function fetchTasks() {
 let _pillTickerIndex = 0;
 let _pillTickerTimer = null;
 let _currentPillItems = [];
+let _lastPillRenderedText = '';
 
 function updatePillMonitor(tasks) {
   const pill = document.getElementById('minimized-slice-pill');
@@ -1434,6 +1433,10 @@ function updatePillMonitor(tasks) {
   // If no tasks at all, hide pill
   if (activeTasks.length === 0 && completedRecent.length === 0) {
     pill.classList.add('hidden');
+    if (_pillTickerTimer) {
+      clearInterval(_pillTickerTimer);
+      _pillTickerTimer = null;
+    }
     return;
   }
 
@@ -1443,45 +1446,57 @@ function updatePillMonitor(tasks) {
   if (activeTasks.length > 0) {
     pill.classList.remove('pill-done');
     const items = activeTasks.map(t => {
-      const tag = t.is_preview ? '30s Slice' : 'Master';
+      const tag = t.is_preview ? '30s Slice' : 'Master 1080p';
       const stage = t.stage || (t.progress ? `Compositing ${t.progress.toFixed(0)}%` : 'Running...');
       return `<i class="fas fa-bolt text-accent"></i> <strong>${tag} (#${t.id})</strong>: ${stage}`;
     });
 
     _currentPillItems = items;
     if (_pillTickerIndex >= items.length) _pillTickerIndex = 0;
-    renderCurrentPillItem();
+
+    // Only render immediately if empty or changed
+    if (!_lastPillRenderedText) {
+      renderCurrentPillItem();
+    }
 
     if (!_pillTickerTimer) {
+      // 3.8 second calm cycling between background tasks with smooth fade transition
       _pillTickerTimer = setInterval(() => {
         if (_currentPillItems.length > 1) {
           _pillTickerIndex = (_pillTickerIndex + 1) % _currentPillItems.length;
-          if (pillLabel) {
-            pillLabel.style.opacity = '0';
-            setTimeout(() => {
-              renderCurrentPillItem();
-              pillLabel.style.opacity = '1';
-            }, 200);
-          }
-        } else if (_currentPillItems.length === 1) {
+        } else {
           _pillTickerIndex = 0;
-          renderCurrentPillItem();
         }
-      }, 2600);
+        if (pillLabel) {
+          pillLabel.style.transition = 'opacity 0.25s ease';
+          pillLabel.style.opacity = '0';
+          setTimeout(() => {
+            renderCurrentPillItem();
+            pillLabel.style.opacity = '1';
+          }, 250);
+        }
+      }, 3800);
     }
   } else {
     // Active tasks finished! Show completed badge with clickable action
+    if (_pillTickerTimer) {
+      clearInterval(_pillTickerTimer);
+      _pillTickerTimer = null;
+    }
     pill.classList.add('pill-done');
     const latest = completedRecent[0];
     const filename = latest && latest.output_path ? latest.output_path.split('\\').pop() : '';
     pillLabel.innerHTML = `<i class="fas fa-check-circle" style="color:var(--accent-green)"></i> <strong>Ready</strong>: ${filename || 'Render Complete! Click to View'}`;
+    _lastPillRenderedText = filename;
   }
 }
 
 function renderCurrentPillItem() {
   const pillLabel = document.getElementById('minimized-slice-label');
   if (pillLabel && _currentPillItems.length > 0) {
-    pillLabel.innerHTML = _currentPillItems[_pillTickerIndex % _currentPillItems.length];
+    const text = _currentPillItems[_pillTickerIndex % _currentPillItems.length];
+    pillLabel.innerHTML = text;
+    _lastPillRenderedText = text;
   }
 }
 

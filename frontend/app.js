@@ -1054,7 +1054,8 @@ function initSourcePickers() {
     const file = e.target.files[0];
     if (!file) return;
 
-    document.getElementById('twitch-filename').textContent = `Uploading ${file.name}...`;
+    const label = document.getElementById('twitch-filename');
+    if (label) label.textContent = `Uploading ${file.name}...`;
     const formData = new FormData();
     formData.append('file', file);
 
@@ -1064,12 +1065,14 @@ function initSourcePickers() {
       if (res.ok) {
         STATE.twitchLocalPath = data.path;
         STATE.twitchDuration = data.duration || 0;
-        document.getElementById('twitch-filename').textContent = `✓ ${file.name} (${formatDuration(data.duration)})`;
-        showToast('Local Twitch gameplay ready!', 'success');
+        if (label) label.textContent = `✓ ${file.name} (${formatDuration(data.duration)})`;
+        showToast('Local background gameplay ready!', 'success');
       } else {
+        if (label) label.textContent = `✗ Upload failed. Click to re-select.`;
         showToast(`Upload failed: ${data.detail}`, 'error');
       }
     } catch (err) {
+      if (label) label.textContent = `✗ Upload failed: ${err.message}`;
       showToast(`Upload error: ${err.message}`, 'error');
     }
   });
@@ -1117,7 +1120,8 @@ function initSourcePickers() {
     const file = e.target.files[0];
     if (!file) return;
 
-    document.getElementById('yt-filename').textContent = `Uploading ${file.name}...`;
+    const label = document.getElementById('yt-filename');
+    if (label) label.textContent = `Uploading ${file.name}...`;
     const formData = new FormData();
     formData.append('file', file);
 
@@ -1127,13 +1131,15 @@ function initSourcePickers() {
       if (res.ok) {
         STATE.ytLocalPath = data.path;
         STATE.ytDuration = data.duration || 0;
-        document.getElementById('yt-filename').textContent = `✓ ${file.name} (${formatDuration(data.duration)})`;
+        if (label) label.textContent = `✓ ${file.name} (${formatDuration(data.duration)})`;
         updateDurationSyncUI(data.duration);
-        showToast('Local reaction video loaded!', 'success');
+        showToast('Local YouTube video ready!', 'success');
       } else {
+        if (label) label.textContent = `✗ Upload failed. Click to re-select.`;
         showToast(`Upload failed: ${data.detail}`, 'error');
       }
     } catch (err) {
+      if (label) label.textContent = `✗ Upload failed: ${err.message}`;
       showToast(`Upload error: ${err.message}`, 'error');
     }
   });
@@ -1318,15 +1324,32 @@ function collectPayload(isPreview = false) {
   const twitchInput = document.getElementById('twitch-path')?.value.trim();
   const ytInput = document.getElementById('yt-path')?.value.trim();
 
-  let twitchPath = STATE.sourceModes.twitch === 'url' ? (twitchInput || STATE.twitchLocalPath) : (STATE.twitchLocalPath || twitchInput);
-  let ytPath = STATE.sourceModes.yt === 'url' ? (ytInput || STATE.ytLocalPath) : (STATE.ytLocalPath || ytInput);
+  let twitchPath = '';
+  if (STATE.sourceModes.twitch === 'url') {
+    twitchPath = twitchInput;
+  } else {
+    twitchPath = STATE.twitchLocalPath;
+    if (!twitchPath && twitchInput && (twitchInput.includes('/') || twitchInput.includes('\\') || twitchInput.toLowerCase().endsWith('.mp4'))) {
+      twitchPath = twitchInput;
+    }
+  }
+
+  let ytPath = '';
+  if (STATE.sourceModes.yt === 'url') {
+    ytPath = ytInput;
+  } else {
+    ytPath = STATE.ytLocalPath;
+    if (!ytPath && ytInput && (ytInput.includes('/') || ytInput.includes('\\') || ytInput.toLowerCase().endsWith('.mp4'))) {
+      ytPath = ytInput;
+    }
+  }
 
   if (!twitchPath) {
-    showToast('Please provide a Twitch source (URL or Local File).', 'error');
+    showToast(STATE.sourceModes.twitch === 'file' ? 'Please upload a local background video file first.' : 'Please enter a Twitch or YouTube background URL.', 'error');
     return null;
   }
   if (!ytPath) {
-    showToast('Please provide a YouTube source (URL or Local File).', 'error');
+    showToast(STATE.sourceModes.yt === 'file' ? 'Please upload a local YouTube video file first.' : 'Please enter a YouTube video URL.', 'error');
     return null;
   }
 
@@ -1573,9 +1596,10 @@ function initSliceModal() {
             player.play();
           }
           showToast('⚡ 30s Fast Slice Preview is Ready!', 'success');
-        } else if (task.status === 'FAILED' || task.status === 'CANCELLED') {
+        } else if (task.status === 'FAILED' || task.status === 'CANCELLED' || task.status === 'ERROR') {
           clearInterval(pollInterval);
           pill?.classList.add('hidden');
+          if (modal) modal.classList.remove('hidden');
           if (statusText) {
             statusText.innerHTML = `
               <div style="color: var(--accent-rose); margin-bottom: 8px;">

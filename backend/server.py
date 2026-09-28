@@ -2,6 +2,7 @@ import os
 import sys
 import shutil
 import uuid
+import asyncio
 from pathlib import Path
 from typing import Dict, Any, Optional, List, Union
 
@@ -192,13 +193,13 @@ async def api_probe_media(req: ProbeRequest):
         raise HTTPException(status_code=400, detail="Missing URL or file path.")
     if is_url(val):
         try:
-            info = fetch_url_info(val)
+            info = await asyncio.to_thread(fetch_url_info, val)
             return {"success": True, **info}
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Failed to inspect online URL: {e}")
     else:
         try:
-            info = probe_local_media(val)
+            info = await asyncio.to_thread(probe_local_media, val)
             return {"success": True, **info}
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Failed to inspect local file: {e}")
@@ -209,8 +210,10 @@ async def api_probe_media(req: ProbeRequest):
 async def upload_avatar(file: UploadFile = File(...)):
     safe_name = f"avatar_{uuid.uuid4().hex[:8]}_{Path(file.filename).name}"
     dest = AVATARS_DIR / safe_name
-    with open(dest, "wb") as f:
-        shutil.copyfileobj(file.file, f)
+    def _save():
+        with open(dest, "wb") as f:
+            shutil.copyfileobj(file.file, f)
+    await asyncio.to_thread(_save)
     return {
         "success": True,
         "filename": file.filename,
@@ -223,8 +226,10 @@ async def upload_avatar(file: UploadFile = File(...)):
 async def upload_bgm(file: UploadFile = File(...)):
     safe_name = f"bgm_{uuid.uuid4().hex[:8]}_{Path(file.filename).name}"
     dest = BGM_DIR / safe_name
-    with open(dest, "wb") as f:
-        shutil.copyfileobj(file.file, f)
+    def _save():
+        with open(dest, "wb") as f:
+            shutil.copyfileobj(file.file, f)
+    await asyncio.to_thread(_save)
     return {
         "success": True,
         "filename": file.filename,
@@ -237,16 +242,21 @@ async def upload_bgm(file: UploadFile = File(...)):
 async def upload_local_video(file: UploadFile = File(...)):
     safe_name = f"local_{uuid.uuid4().hex[:8]}_{Path(file.filename).name}"
     dest = DOWNLOADS_DIR / safe_name
-    with open(dest, "wb") as f:
-        shutil.copyfileobj(file.file, f)
-    info = probe_local_media(str(dest))
-    return {
-        "success": True,
-        "filename": file.filename,
-        "path": str(dest.resolve()),
-        "duration": info["duration"],
-        "url": f"/downloads/{safe_name}"
-    }
+    def _save_and_probe():
+        with open(dest, "wb") as f:
+            shutil.copyfileobj(file.file, f)
+        return probe_local_media(str(dest))
+    try:
+        info = await asyncio.to_thread(_save_and_probe)
+        return {
+            "success": True,
+            "filename": file.filename,
+            "path": str(dest.resolve()),
+            "duration": info["duration"],
+            "url": f"/downloads/{safe_name}"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to process video upload: {e}")
 
 
 # --- METADATA & CHAPTER GENERATOR ---

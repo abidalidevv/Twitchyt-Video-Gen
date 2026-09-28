@@ -5,6 +5,7 @@ import uuid
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 
+from .config import DOWNLOADS_DIR
 from .turbo_renderer import render_stream_mix
 from .downloader import is_url, download_stream
 
@@ -15,10 +16,15 @@ class StreamMixTaskManager:
     Handles up to 2 concurrent 1080p GPU rendering tasks simultaneously.
     """
     def __init__(self, max_concurrent: int = 2):
-        self.semaphore = asyncio.Semaphore(max_concurrent)
+        self.max_concurrent = max_concurrent
+        self._semaphore: Optional[asyncio.Semaphore] = None
         self.tasks: Dict[str, Dict[str, Any]] = {}
-        self.queue: asyncio.Queue = asyncio.Queue()
         self.active_processes: Dict[str, Any] = {}
+
+    def _get_semaphore(self) -> asyncio.Semaphore:
+        if self._semaphore is None:
+            self._semaphore = asyncio.Semaphore(self.max_concurrent)
+        return self._semaphore
 
     def create_task(self, title: str, params: Dict[str, Any], is_preview: bool = False) -> str:
         task_id = str(uuid.uuid4())[:8]
@@ -39,20 +45,16 @@ class StreamMixTaskManager:
             "error": None,
             "params": params
         }
-        asyncio.create_task(self._enqueue(task_id))
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(self._worker(task_id))
+        except RuntimeError:
+            asyncio.create_task(self._worker(task_id))
         return task_id
 
-    async def _enqueue(self, task_id: str):
-        await self.queue.put(task_id)
-        asyncio.create_task(self._process_queue())
-
-    async def _process_queue(self):
-        while not self.queue.empty():
-            task_id = await self.queue.get()
-            asyncio.create_task(self._worker(task_id))
-
     async def _worker(self, task_id: str):
-        async with self.semaphore:
+        sem = self._get_semaphore()
+        async with sem:
             task = self.tasks.get(task_id)
             if not task or task.get("status") == "CANCELLED":
                 return
@@ -120,6 +122,11 @@ class StreamMixTaskManager:
 
                 async def download_yt_task():
                     if not yt_is_online:
+                        p = Path(yt_val)
+                        if not p.is_absolute() or not p.exists():
+                            cand = DOWNLOADS_DIR / p.name
+                            if cand.exists():
+                                return str(cand.resolve())
                         return yt_val
                     def dl_yt_prog(pct, speed):
                         prog_state["yt_pct"] = round(pct, 1)
@@ -136,6 +143,11 @@ class StreamMixTaskManager:
 
                 async def download_twitch_task():
                     if not twitch_is_online:
+                        p = Path(twitch_val)
+                        if not p.is_absolute() or not p.exists():
+                            cand = DOWNLOADS_DIR / p.name
+                            if cand.exists():
+                                return str(cand.resolve())
                         return twitch_val
                     is_yt_bg = "youtube.com" in twitch_val.lower() or "youtu.be" in twitch_val.lower()
                     prefix = "bg_gameplay" if is_yt_bg else "twitch_bg"

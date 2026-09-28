@@ -74,14 +74,31 @@ def probe_local_media(file_path: str) -> Dict[str, Any]:
     }
 
 
+def clean_media_url(url: str) -> str:
+    """Strips playlist parameters from YouTube URLs to prevent downloading/probing entire playlists."""
+    if not url:
+        return ""
+    cleaned = url.strip()
+    if "youtube.com" in cleaned or "youtu.be" in cleaned:
+        cleaned = re.sub(r'([?&])list=[^&]+(&|$)', r'\1', cleaned)
+        cleaned = re.sub(r'([?&])index=[^&]+(&|$)', r'\1', cleaned)
+        cleaned = re.sub(r'([?&])start_radio=[^&]+(&|$)', r'\1', cleaned)
+        cleaned = cleaned.rstrip('?&')
+    return cleaned
+
+
 def fetch_url_info(url: str) -> Dict[str, Any]:
     """Extracts metadata from YouTube or Twitch URL without downloading the video."""
     import yt_dlp
 
+    cleaned_url = clean_media_url(url)
     ydl_opts = {
         "quiet": True,
         "no_warnings": True,
         "skip_download": True,
+        "noplaylist": True,
+        "socket_timeout": 8,
+        "extract_flat": False,
         "extractor_args": {
             "youtube": {
                 "player_client": ["android", "web"]
@@ -89,12 +106,14 @@ def fetch_url_info(url: str) -> Dict[str, Any]:
         }
     }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=False)
+        info = ydl.extract_info(cleaned_url, download=False)
+        if "entries" in info and info["entries"]:
+            info = info["entries"][0] or info
         return {
             "title": info.get("title", "Online Stream"),
             "duration": float(info.get("duration", 0.0) or 0.0),
             "thumbnail": info.get("thumbnail"),
-            "url": url,
+            "url": cleaned_url,
             "is_local": False,
             "uploader": info.get("uploader") or info.get("channel") or "Unknown"
         }
@@ -114,6 +133,7 @@ def download_stream(
     """
     import yt_dlp
 
+    cleaned_url = clean_media_url(url)
     output_filename = f"{output_prefix}_{uuid.uuid4().hex[:8]}.mp4"
     output_target = DOWNLOADS_DIR / output_filename
 
@@ -129,13 +149,15 @@ def download_stream(
     from .config import log_error
 
     ffmpeg_path = find_ffmpeg()
-    is_twitch = "twitch.tv" in url.lower()
+    is_twitch = "twitch.tv" in cleaned_url.lower()
 
     ydl_opts = {
         "format": "best[height<=1080]/bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best" if is_twitch else "bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080]/best",
         "outtmpl": str(output_target),
         "quiet": True,
         "no_warnings": True,
+        "noplaylist": True,
+        "socket_timeout": 15,
         "progress_hooks": [yt_hook],
         "merge_output_format": "mp4",
         "ffmpeg_location": ffmpeg_path,
@@ -163,9 +185,9 @@ def download_stream(
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([url])
+            ydl.download([cleaned_url])
     except Exception as e:
-        log_error("downloader", f"Download failed for URL: {url}", exc=e)
+        log_error("downloader", f"Download failed for URL: {cleaned_url}", exc=e)
         raise RuntimeError(f"Download stream error: {e}")
 
     return str(output_target.resolve())

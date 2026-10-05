@@ -11,6 +11,8 @@ from .config import (
     detect_hardware_encoder,
     OUTPUT_DIR,
     TEMP_DIR,
+    DOWNLOADS_DIR,
+    DATA_DIR,
     FONTS_DIR,
     load_settings,
     log_error
@@ -107,7 +109,8 @@ def apply_avatar_outer_glow(avatar_path: str, glow_type: str, task_id: str) -> s
 
 def render_stream_mix(
     params: Dict[str, Any],
-    progress_callback: Optional[Callable[[float, int, str], None]] = None
+    progress_callback: Optional[Callable[[float, int, str], None]] = None,
+    process_callback: Optional[Callable[[Any], None]] = None
 ) -> str:
     """
     Executes master single-pass FFmpeg streaming pipeline:
@@ -126,6 +129,28 @@ def render_stream_mix(
     youtube_path = params.get("youtube_main_path")
     avatar_path = params.get("avatar_path")
     bgm_path = params.get("bgm_path")
+
+    def resolve_video_file(p: Optional[str]) -> Optional[str]:
+        if not p:
+            return None
+        p_obj = Path(p)
+        if p_obj.is_file():
+            return str(p_obj.resolve())
+        candidates = [
+            DOWNLOADS_DIR / p,
+            DOWNLOADS_DIR / p_obj.name,
+            DATA_DIR / p,
+            DATA_DIR / p_obj.name,
+            OUTPUT_DIR / p,
+            OUTPUT_DIR / p_obj.name,
+        ]
+        for c in candidates:
+            if c.is_file():
+                return str(c.resolve())
+        return p
+
+    twitch_path = resolve_video_file(twitch_path)
+    youtube_path = resolve_video_file(youtube_path)
 
     if not youtube_path or not Path(youtube_path).exists():
         raise FileNotFoundError(f"YouTube Main video not found: {youtube_path}")
@@ -329,7 +354,8 @@ def render_stream_mix(
         current_v = "[layer_cap_bg]"
 
     # 4b. Layer 4b: Optional Subtitles with Custom Fonts & Glow
-    ass_path = params.get("ass_subtitles_path")
+    enable_captions = bool(params.get("enable_captions", True))
+    ass_path = params.get("ass_subtitles_path") if enable_captions else None
     if ass_path and Path(ass_path).exists():
         escaped_ass = escape_ffmpeg_path(str(Path(ass_path).resolve()))
         fonts_dir_esc = escape_ffmpeg_path(str(FONTS_DIR.resolve()))
@@ -399,6 +425,8 @@ def render_stream_mix(
         "-c:a", "aac",
         "-b:a", "192k",
         "-pix_fmt", "yuv420p",
+        "-r", "60",
+        "-fps_mode", "cfr",
         "-t", f"{render_duration:.2f}",
         "-progress", "pipe:1",
         str(output_path)
@@ -414,6 +442,12 @@ def render_stream_mix(
         universal_newlines=True,
         creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
     )
+
+    if process_callback:
+        try:
+            process_callback(process)
+        except Exception:
+            pass
 
     fps_val = 0
     start_time = time.time()
@@ -447,11 +481,27 @@ def render_stream_mix(
                     except Exception:
                         pass
 
-    monitor_thread = threading.Thread(target=parse_progress, daemon=True)
-    monitor_thread.start()
+    stdout_thread = threading.Thread(target=parse_progress, daemon=True)
+    stdout_thread.start()
 
-    stderr_output = process.communicate()[1]
-    monitor_thread.join()
+    stderr_lines = []
+    def read_stderr():
+        try:
+            for line in process.stderr:
+                stderr_lines.append(line)
+                if len(stderr_lines) > 200:
+                    stderr_lines.pop(0)
+        except Exception:
+            pass
+
+    stderr_thread = threading.Thread(target=read_stderr, daemon=True)
+    stderr_thread.start()
+
+    process.wait()
+    stdout_thread.join(timeout=3.0)
+    stderr_thread.join(timeout=3.0)
+
+    stderr_output = "".join(stderr_lines)
 
     if process.returncode != 0:
         err_msg = f"FFmpeg render failed with exit code {process.returncode}.\nStderr: {stderr_output[-1200:]}\nCommand: {' '.join(cmd[:15])}..."

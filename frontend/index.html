@@ -50,6 +50,9 @@
 
       <!-- Header Right: Task Drawer Trigger, Error Logs & Output Folder -->
       <div class="header-right">
+        <button id="btnOpenStorage" class="btn-ghost" title="Project Cache & Disk Cleanup" onclick="openStorageModal()">
+          <i class="fas fa-broom text-warning"></i> <span id="storageHeaderBadge">Cache: ...</span>
+        </button>
         <button id="btnOpenLogs" class="btn-ghost" title="View Error & System Logs">
           <i class="fas fa-file-waveform text-danger"></i> Error Logs
         </button>
@@ -64,6 +67,25 @@
       </div>
     </header>
 
+    <!-- GROQ API KEY ALERT BANNER (Auto-hidden if API is healthy) -->
+    <div id="groq-health-banner" class="api-health-banner hidden">
+      <div class="api-health-content">
+        <i class="fas fa-exclamation-triangle banner-icon"></i>
+        <div class="banner-text">
+          <strong id="groq-health-title">Groq Whisper API Warning:</strong>
+          <span id="groq-health-msg">Checking Groq API connection...</span>
+        </div>
+      </div>
+      <div class="banner-actions">
+        <button type="button" class="btn-banner-action" onclick="switchToApiKeysTab()">
+          <i class="fas fa-key"></i> Update / Replace Key
+        </button>
+        <button type="button" class="btn-banner-dismiss" onclick="dismissGroqBanner()" title="Dismiss Alert">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+    </div>
+
     <!-- MAIN VIEW 1: STUDIO EDITOR -->
     <main id="view-editor" class="view-panel active">
       <div class="editor-grid">
@@ -76,11 +98,17 @@
                 <i class="fas fa-tv text-primary"></i> 16:9 Master Director Stage (WYSIWYG)
               </div>
               <div class="stage-badges">
+                <button type="button" class="btn-stage-tool active" id="btn-subs-left" onclick="setCaptionPositionPreset('left')" title="Align Captions to Left Side">
+                  ⬅️ Subs Left
+                </button>
+                <button type="button" class="btn-stage-tool" id="btn-subs-right" onclick="setCaptionPositionPreset('right')" title="Align Captions to Right Side">
+                  ➡️ Subs Right
+                </button>
                 <button type="button" class="btn-stage-tool" id="btn-toggle-grid" onclick="toggleStageGrid()">
                   📐 Safe Grid (90%)
                 </button>
                 <button type="button" class="btn-stage-tool" id="btn-reset-layout" onclick="resetStageLayout()">
-                  🔄 Reset Positions
+                  🔄 Reset
                 </button>
                 <span id="durationSyncBadge" class="badge-duration">Duration: Syncing...</span>
               </div>
@@ -117,7 +145,7 @@
                 <!-- Layer 3: Draggable & Resizable Host Avatar Cutout -->
                 <div class="stage-element stage-avatar-box" id="stage-avatar-box" tabindex="0" title="Author Avatar (Drag anywhere, drag corner handles to scale)">
                   <div class="stage-element-tag">👤 Host Avatar</div>
-                  <img id="stage-avatar-img" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2364748b' width='100%' height='100%'><path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/></svg>" alt="Avatar" />
+                  <img id="stage-avatar-img" src="/avatars/default_avatar.png" alt="Avatar" />
                   <div class="stage-resize-handle handle-br" data-target="avatar" data-dir="br" title="Drag corner to scale avatar"></div>
                   <div class="stage-resize-handle handle-bl" data-target="avatar" data-dir="bl" title="Drag corner to scale avatar"></div>
                   <div class="stage-resize-handle handle-tr" data-target="avatar" data-dir="tr" title="Drag corner to scale avatar"></div>
@@ -132,19 +160,7 @@
                       <span class="demo-word" data-w="0">WAIT...</span>
                       <span class="demo-word" data-w="1">DID</span>
                       <span class="demo-word" data-w="2">HE</span>
-                      <span class="demo-word" data-w="3">REALLY</span>
-                    </div>
-                    <div class="demo-line" data-line="1">
-                      <span class="demo-word" data-w="4">GET</span>
-                      <span class="demo-word" data-w="5">AN</span>
-                      <span class="demo-word active" data-w="6">UNFAIR</span>
-                      <span class="demo-word active" data-w="7">ADVANTAGE?!</span>
-                    </div>
-                    <div class="demo-line" data-line="2">
-                      <span class="demo-word" data-w="8">WATCH</span>
-                      <span class="demo-word" data-w="9">THIS</span>
-                      <span class="demo-word active" data-w="10">INSANE</span>
-                      <span class="demo-word" data-w="11">MOMENT!</span>
+                      <span class="demo-word active" data-w="3">REALLY?!</span>
                     </div>
                   </div>
                   <!-- 8-Directional Resize Handles for Captions -->
@@ -171,7 +187,7 @@
                 <span id="hud-bg-blur-pill">BG Blur: 18px</span>
                 <span id="hud-yt-blur-pill">YT Blur: 18px</span>
                 <span id="hud-opacity-pill">YT: 70%</span>
-                <span id="hud-avatar-pill">Avatar: 420px</span>
+                <span id="hud-avatar-pill">Avatar: 350px</span>
               </div>
             </div>
           </div>
@@ -471,9 +487,9 @@
                   <div class="half-field">
                     <div class="slider-label-row">
                       <label class="slider-label"><i class="fas fa-expand-arrows-alt"></i> Avatar Height</label>
-                      <span class="slider-value-badge" id="avatar-size-display">420px</span>
+                      <span class="slider-value-badge" id="avatar-size-display">350px</span>
                     </div>
-                    <input type="range" id="avatar-size" min="250" max="950" value="420" class="range-slider">
+                    <input type="range" id="avatar-size" min="250" max="950" value="350" class="range-slider">
                   </div>
                   <div class="half-field">
                     <div class="slider-label-row">
@@ -545,18 +561,20 @@
                   <div class="slider-group">
                     <label class="slider-label">📍 Caption Placement</label>
                     <div class="btn-group">
-                      <button type="button" class="btn-option active" id="cap-pos-bottom" onclick="setCaptionPresetPos('bottom')">⬇️ Bottom Area</button>
-                      <button type="button" class="btn-option" id="cap-pos-center" onclick="setCaptionPresetPos('center')">🎯 Center Screen</button>
+                      <button type="button" class="btn-option active" id="cap-pos-left" onclick="setCaptionPositionPreset('left')">⬅️ Left</button>
+                      <button type="button" class="btn-option" id="cap-pos-right" onclick="setCaptionPositionPreset('right')">➡️ Right</button>
+                      <button type="button" class="btn-option" id="cap-pos-bottom" onclick="setCaptionPresetPos('bottom')">⬇️ Bottom</button>
+                      <button type="button" class="btn-option" id="cap-pos-center" onclick="setCaptionPresetPos('center')">🎯 Center</button>
                     </div>
                   </div>
                   <div class="slider-group">
                     <div class="slider-label-row">
                       <label class="slider-label">🔤 Font Size</label>
-                      <span class="slider-value-badge" id="caption-font-size-badge">Large (115px)</span>
+                      <span class="slider-value-badge" id="caption-font-size-badge">Medium (95px)</span>
                     </div>
                     <div class="btn-group font-size-btn-group">
-                      <button type="button" class="btn-option" id="cap-size-medium" onclick="setCaptionSize('medium')">Medium</button>
-                      <button type="button" class="btn-option active" id="cap-size-large" onclick="setCaptionSize('large')">Large</button>
+                      <button type="button" class="btn-option active" id="cap-size-medium" onclick="setCaptionSize('medium')">Medium</button>
+                      <button type="button" class="btn-option" id="cap-size-large" onclick="setCaptionSize('large')">Large</button>
                       <button type="button" class="btn-option" id="cap-size-huge" onclick="setCaptionSize('huge')">Huge</button>
                       <select id="caption-font-size-more" class="btn-option btn-dropdown-select" onchange="onCaptionMoreSelect(this.value)" title="Extra Huge & Custom Sizes">
                         <option value="" disabled selected hidden>💥 Extra ▼</option>
@@ -953,8 +971,81 @@
       </div>
     </div>
 
+    <!-- MODAL: STORAGE & CACHE CLEANER -->
+    <div id="modal-storage-cleaner" class="modal-overlay hidden">
+      <div class="modal-card modal-storage-card">
+        <div class="modal-header">
+          <h3><i class="fas fa-broom text-warning"></i> 💾 Storage & Project Cache Cleaner</h3>
+          <button id="btn-close-storage-modal" class="btn-close-modal" onclick="closeStorageModal()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+          <p class="storage-desc">
+            StreamMix caches downloaded Twitch/YouTube raw clips and Whisper audio chunks for fast rendering.
+            Clean up cache files below to free disk space while <strong>keeping your finished output videos completely safe</strong>.
+          </p>
+
+          <div class="storage-stats-grid">
+            <div class="storage-stat-card">
+              <div class="stat-icon"><i class="fas fa-file-audio" style="color:var(--accent-cyan)"></i></div>
+              <div class="stat-info">
+                <span class="stat-label">Temp Audio & Subtitles</span>
+                <span class="stat-val" id="storage-temp-size">0.0 MB</span>
+                <span class="stat-sub" id="storage-temp-sub">data/temp/ (0 files)</span>
+              </div>
+            </div>
+
+            <div class="storage-stat-card">
+              <div class="stat-icon"><i class="fab fa-youtube" style="color:#ef4444"></i></div>
+              <div class="stat-info">
+                <span class="stat-label">Stream Downloads Cache</span>
+                <span class="stat-val" id="storage-downloads-size">0.0 MB</span>
+                <span class="stat-sub" id="storage-downloads-sub">data/downloads/ (0 files)</span>
+              </div>
+            </div>
+
+            <div class="storage-stat-card safe-card">
+              <div class="stat-icon"><i class="fas fa-shield-alt" style="color:var(--accent-green)"></i></div>
+              <div class="stat-info">
+                <span class="stat-label">Finished Master Videos</span>
+                <span class="stat-val" id="storage-outputs-size">0.0 MB</span>
+                <span class="stat-sub" style="color:var(--accent-green); font-weight:700;"><i class="fas fa-lock"></i> SAFE & PROTECTED</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="storage-cleanup-options">
+            <label class="storage-check-row">
+              <input type="checkbox" id="clean-check-temp" checked>
+              <span>Clean temporary speech chunks & intermediate subtitle files (<code>data/temp</code>)</span>
+            </label>
+            <label class="storage-check-row">
+              <input type="checkbox" id="clean-check-downloads" checked>
+              <span>Clean downloaded Twitch/YouTube cached video clips (<code>data/downloads</code>)</span>
+            </label>
+            <label class="storage-check-row danger-row">
+              <input type="checkbox" id="clean-check-outputs">
+              <span>⚠️ Also delete finished master output videos (<code>data/outputs</code>) — <em>Unchecked by default to keep videos safe</em></span>
+            </label>
+          </div>
+
+          <div id="storage-clean-result" class="storage-result-msg hidden"></div>
+        </div>
+        <div class="modal-footer" style="display:flex; justify-content:space-between; align-items:center;">
+          <div class="storage-reclaim-text">
+            Reclaimable Cache: <strong id="storage-reclaim-total" class="text-cyan">0.0 GB</strong>
+          </div>
+          <div style="display:flex; gap:10px;">
+            <button type="button" class="btn-ghost" onclick="closeStorageModal()">Close</button>
+            <button type="button" class="btn-primary" id="btn-execute-clean" onclick="executeStorageClean()">
+              <i class="fas fa-trash-alt"></i> Purge Selected Cache
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 
-  <script src="/static/app.js?v=2.2.9"></script>
+  <script src="/static/app.js?v=2.3.0"></script>
 </body>
 </html>

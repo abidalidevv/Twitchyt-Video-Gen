@@ -6,10 +6,12 @@ import os
 import re
 import json
 import time
+import subprocess
+import concurrent.futures
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 
-from .config import TEMP_DIR, log_error
+from .config import TEMP_DIR, log_error, find_ffmpeg
 from .api_pool import groq_pool
 
 # ─── PRESET STYLES (100% 1:1 Palette Matching with Frontend Canvas) ────────────
@@ -281,24 +283,140 @@ def sec_to_ass_time(sec: float) -> str:
     return f"{hrs}:{mins:02d}:{secs:02d}.{centis:02d}"
 
 
-def transcribe_audio_words(audio_file_path: str) -> List[Dict[str, Any]]:
-    """Transcribes audio file using Groq Whisper with word-level timestamps."""
-    client, key_id = groq_pool.get_client()
-    try:
-        with open(audio_file_path, "rb") as af:
-            resp = client.audio.transcriptions.create(
-                file=af,
-                model="whisper-large-v3",
-                response_format="verbose_json",
-                timestamp_granularities=["word"]
-            )
-        words = getattr(resp, "words", None)
-        if not words and isinstance(resp, dict):
-            words = resp.get("words", [])
-        return words or []
-    except Exception as e:
-        log_error("subtitle_generator", f"Groq Whisper transcription failed: {e}", exc=e)
+def _transcribe_single_audio_file(file_path: str, max_retries: int = 3) -> List[Dict[str, Any]]:
+    """Transcribes a single audio file (<25MB) using available healthy Groq keys with auto-retry and 429 backoff."""
+    max_attempts = max(max_retries, len(groq_pool.keys) * 2)
+    attempts = 0
+    backoff = 2.5
+    while attempts < max_attempts:
+        try:
+            client, key_id = groq_pool.get_client()
+        except Exception as e:
+            log_error("subtitle_generator", f"No healthy Groq API keys available: {e}")
+            return []
+
+        try:
+            with open(file_path, "rb") as af:
+                resp = client.audio.transcriptions.create(
+                    file=af,
+                    model="whisper-large-v3",
+                    response_format="verbose_json",
+                    timestamp_granularities=["word"]
+                )
+            words = getattr(resp, "words", None)
+            if not words and isinstance(resp, dict):
+                words = resp.get("words", [])
+            return words or []
+        except Exception as e:
+            err_str = str(e)
+            if "401" in err_str or "invalid_api_key" in err_str.lower():
+                groq_pool.mark_key_invalid(key_id, "Invalid API Key (401)")
+            elif "429" in err_str or "rate limit" in err_str.lower():
+                groq_pool.rotate_to_next(key_id, "Rate Limited (429)")
+                time.sleep(backoff)
+                backoff = min(15.0, backoff * 1.5)
+            else:
+                groq_pool.rotate_to_next(key_id, f"Transcription error: {err_str[:40]}")
+                time.sleep(1.0)
+            attempts += 1
+    return []
+
+
+def transcribe_audio_words(audio_file_path: str, total_duration: Optional[float] = None) -> List[Dict[str, Any]]:
+    """
+    Transcribes audio file using Groq Whisper with word-level timestamps.
+    Automatically handles files exceeding Groq's 25MB limit or long durations (>600s)
+    by slicing into 10-minute chunks and dispatching in parallel across all available
+    Groq API keys in the pool!
+    """
+    if not os.path.exists(audio_file_path):
         return []
+
+    file_size = os.path.getsize(audio_file_path)
+    MAX_FILE_SIZE = 18 * 1024 * 1024  # 18MB safe threshold
+    CHUNK_DURATION_SEC = 600.0        # 10 minutes per chunk
+
+    # Determine duration
+    duration = total_duration
+    if duration is None or duration <= 0:
+        try:
+            from .downloader import probe_local_media
+            info = probe_local_media(audio_file_path)
+            duration = float(info.get("duration", 0.0) or 0.0)
+        except Exception:
+            duration = 0.0
+
+    # If small file and <= 10 mins, transcribe directly
+    if file_size <= MAX_FILE_SIZE and (duration <= 0 or duration <= CHUNK_DURATION_SEC):
+        return _transcribe_single_audio_file(audio_file_path)
+
+    # Otherwise: Large or Long Video! Chunk into 10-minute segments
+    ffmpeg_bin = find_ffmpeg()
+    estimated_duration = duration if duration > 0 else (file_size / (8 * 1024))
+
+    chunks = []
+    t = 0.0
+    chunk_idx = 0
+    while t < estimated_duration:
+        chunk_len = min(CHUNK_DURATION_SEC, estimated_duration - t)
+        if chunk_len <= 1.0:
+            break
+        chunk_file = str((TEMP_DIR / f"chunk_{chunk_idx}_{int(time.time()*1000)}.mp3").resolve())
+        slice_cmd = [
+            ffmpeg_bin, "-y", "-ss", f"{t:.2f}",
+            "-i", audio_file_path,
+            "-t", f"{chunk_len:.2f}",
+            "-vn", "-ac", "1", "-ar", "16000", "-b:a", "64k",
+            chunk_file
+        ]
+        try:
+            subprocess.run(slice_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+            if os.path.exists(chunk_file) and os.path.getsize(chunk_file) > 1000:
+                chunks.append((chunk_idx, t, chunk_file))
+        except Exception as slice_err:
+            log_error("subtitle_generator", f"Error slicing chunk {chunk_idx}: {slice_err}")
+        t += CHUNK_DURATION_SEC
+        chunk_idx += 1
+
+    if not chunks:
+        return _transcribe_single_audio_file(audio_file_path)
+
+    # Parallel transcription using available Groq pool keys
+    all_words = []
+    chunk_results = {}
+    healthy_clients = groq_pool.get_available_clients()
+    max_workers = max(1, min(5, len(healthy_clients) or 1))
+
+    def process_chunk(chunk_info):
+        c_idx, offset_sec, c_file = chunk_info
+        words = _transcribe_single_audio_file(c_file)
+        shifted = []
+        for w in words:
+            shifted.append({
+                "word": w.get("word", ""),
+                "start": round(float(w.get("start", 0.0)) + offset_sec, 3),
+                "end": round(float(w.get("end", 0.0)) + offset_sec, 3)
+            })
+        try:
+            if os.path.exists(c_file):
+                os.remove(c_file)
+        except Exception:
+            pass
+        return c_idx, shifted
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = [executor.submit(process_chunk, c) for c in chunks]
+        for f in concurrent.futures.as_completed(futures):
+            try:
+                c_idx, shifted_words = f.result()
+                chunk_results[c_idx] = shifted_words
+            except Exception as e:
+                log_error("subtitle_generator", f"Chunk transcription failed: {e}")
+
+    for idx in sorted(chunk_results.keys()):
+        all_words.extend(chunk_results[idx])
+
+    return all_words
 
 
 def generate_fallback_speech_words(duration_sec: float) -> List[Dict[str, Any]]:

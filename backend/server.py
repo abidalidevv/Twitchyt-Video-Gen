@@ -46,7 +46,8 @@ from .config import (
     get_recent_logs,
     clear_logs,
     log_error,
-    ERROR_LOG_FILE
+    ERROR_LOG_FILE,
+    LOGS_DIR
 )
 from .api_pool import groq_pool
 from .groq_metadata import generate_youtube_metadata
@@ -177,6 +178,63 @@ class TestKeyRequest(BaseModel):
 async def test_key_latency(req: TestKeyRequest):
     valid, latency, msg = groq_pool.test_key(req.key.strip())
     return {"valid": valid, "latency_ms": latency, "message": msg}
+
+
+@app.get("/api/keys/status")
+async def api_get_keys_status():
+    """Checks the health of Groq API keys and returns real-time verification status."""
+    groq_pool.load_keys()
+    keys = groq_pool.keys
+    if not keys:
+        return {
+            "has_working_key": False,
+            "total_keys": 0,
+            "healthy_count": 0,
+            "invalid_count": 0,
+            "message": "No Groq API keys found. Please add an API key in the API Keys Pool tab."
+        }
+
+    tested_keys = []
+    healthy_count = 0
+    invalid_count = 0
+
+    for k in keys:
+        api_key = k.get("key", "").strip()
+        if not api_key:
+            k["status"] = "INVALID"
+            k["last_error"] = "Empty key string"
+            invalid_count += 1
+        else:
+            valid, latency, msg = await asyncio.to_thread(groq_pool.test_key, api_key)
+            k["status"] = "HEALTHY" if valid else "INVALID"
+            k["latency_ms"] = latency if valid else 0
+            k["last_error"] = None if valid else msg
+            if valid:
+                healthy_count += 1
+            else:
+                invalid_count += 1
+
+        masked = api_key[:6] + "..." + api_key[-4:] if len(api_key) > 12 else "gsk_***"
+        tested_keys.append({
+            "id": k.get("id"),
+            "label": k.get("label"),
+            "masked_key": masked,
+            "status": k.get("status"),
+            "latency_ms": k.get("latency_ms", 0),
+            "error": k.get("last_error")
+        })
+
+    groq_pool.save_keys()
+
+    return {
+        "has_working_key": healthy_count > 0,
+        "total_keys": len(keys),
+        "healthy_count": healthy_count,
+        "invalid_count": invalid_count,
+        "keys": tested_keys,
+        "message": f"Groq API is verified and working ({healthy_count} healthy key{'s' if healthy_count > 1 else ''})." if healthy_count > 0 else "Your Groq API key is expired or invalid (401/429). Please replace it."
+    }
+
 
 
 # --- MEDIA PROBING & UPLOADS ---
@@ -437,6 +495,126 @@ async def api_open_output(req: OpenOutputRequest):
     return {"success": True}
 
 
+# --- STORAGE & CACHE MANAGEMENT ---
+def _format_size(num_bytes: int) -> str:
+    if num_bytes < 1024 * 1024:
+        return f"{num_bytes / 1024:.1f} KB"
+    elif num_bytes < 1024 * 1024 * 1024:
+        return f"{num_bytes / (1024 * 1024):.1f} MB"
+    else:
+        return f"{num_bytes / (1024 * 1024 * 1024):.2f} GB"
+
+
+def _calc_dir_stats(dir_path: Path):
+    if not dir_path.exists():
+        return 0, 0
+    total_bytes = 0
+    count = 0
+    for p in dir_path.rglob("*"):
+        if p.is_file():
+            try:
+                total_bytes += p.stat().st_size
+                count += 1
+            except Exception:
+                pass
+    return total_bytes, count
+
+
+@app.get("/api/storage/stats")
+async def api_storage_stats():
+    """Calculates disk burden of temp files, download cache, and output renders."""
+    temp_bytes, temp_count = _calc_dir_stats(TEMP_DIR)
+    dl_bytes, dl_count = _calc_dir_stats(DOWNLOADS_DIR)
+    out_bytes, out_count = _calc_dir_stats(OUTPUT_DIR)
+    logs_bytes, logs_count = _calc_dir_stats(LOGS_DIR)
+
+    cache_bytes = temp_bytes + dl_bytes
+    total_bytes = cache_bytes + out_bytes + logs_bytes
+
+    return {
+        "success": True,
+        "temp": {
+            "bytes": temp_bytes,
+            "mb": round(temp_bytes / (1024 * 1024), 2),
+            "formatted": _format_size(temp_bytes),
+            "files": temp_count
+        },
+        "downloads": {
+            "bytes": dl_bytes,
+            "mb": round(dl_bytes / (1024 * 1024), 2),
+            "formatted": _format_size(dl_bytes),
+            "files": dl_count
+        },
+        "outputs": {
+            "bytes": out_bytes,
+            "mb": round(out_bytes / (1024 * 1024), 2),
+            "formatted": _format_size(out_bytes),
+            "files": out_count
+        },
+        "cache_reclaimable": {
+            "bytes": cache_bytes,
+            "mb": round(cache_bytes / (1024 * 1024), 2),
+            "formatted": _format_size(cache_bytes)
+        },
+        "total_burden": {
+            "bytes": total_bytes,
+            "mb": round(total_bytes / (1024 * 1024), 2),
+            "formatted": _format_size(total_bytes)
+        }
+    }
+
+
+class CleanStorageRequest(BaseModel):
+    clean_temp: bool = True
+    clean_downloads: bool = True
+    clean_outputs: bool = False
+    clean_logs: bool = False
+
+
+@app.post("/api/storage/clean")
+async def api_storage_clean(req: CleanStorageRequest):
+    """Safely cleans selected cache folders while keeping finished output videos safe by default."""
+    freed_bytes = 0
+    deleted_files = 0
+    errors = []
+
+    def _purge_dir(dir_path: Path):
+        nonlocal freed_bytes, deleted_files
+        if not dir_path.exists():
+            return
+        for p in list(dir_path.rglob("*")):
+            if p.is_file():
+                try:
+                    sz = p.stat().st_size
+                    p.unlink()
+                    freed_bytes += sz
+                    deleted_files += 1
+                except Exception as e:
+                    errors.append(f"{p.name}: {e}")
+
+    if req.clean_temp:
+        await asyncio.to_thread(_purge_dir, TEMP_DIR)
+
+    if req.clean_downloads:
+        await asyncio.to_thread(_purge_dir, DOWNLOADS_DIR)
+
+    # OUTPUTS ARE PROTECTED — Only clean if explicitly checked by user
+    if req.clean_outputs:
+        await asyncio.to_thread(_purge_dir, OUTPUT_DIR)
+
+    if req.clean_logs:
+        await asyncio.to_thread(_purge_dir, LOGS_DIR)
+
+    return {
+        "success": True,
+        "freed_bytes": freed_bytes,
+        "freed_mb": round(freed_bytes / (1024 * 1024), 2),
+        "freed_formatted": _format_size(freed_bytes),
+        "deleted_count": deleted_files,
+        "errors": errors
+    }
+
+
 # --- ERROR LOGS API ---
 @app.get("/api/logs")
 async def api_get_logs():
@@ -451,4 +629,5 @@ async def api_get_logs():
 async def api_clear_logs():
     cleared = clear_logs()
     return {"success": cleared, "message": "Error log cleared."}
+
 

@@ -1,3 +1,10 @@
+# Private API references and environment keys
+api.txt
+*.env
+*.key
+*.token
+backend/api.txt
+
 # Large archives and binaries (>100MB exceeds GitHub limit)
 *.rar
 *.zip
@@ -5,25 +12,44 @@
 bin/
 *.exe
 
-# Local data, outputs, media, temp files, settings, and logs
+# Local media, outputs, audio, video, cache, logs
 data/
 *.mp4
 *.mkv
 *.webm
 *.mov
+*.avi
 *.mp3
 *.wav
+*.m4a
+*.aac
+*.flac
+*.ogg
 *.ass
+cache/
+*.cache
 
-# Scratch & development files
+# Test, scratch, extra & build files
 scratch/
+extra_tests/
+extra/
 test_font.ass
+test/
+tests/
+*_test.py
+build/
+dist/
+*.spec
+
+# Markdown documentation files (Keep README.md and BRAIN.md)
+*.md
+!README.md
+!BRAIN.md
 
 # Python artifacts
 __pycache__/
 *.py[cod]
 *$py.class
-*.env
 venv/
 .venv/
 

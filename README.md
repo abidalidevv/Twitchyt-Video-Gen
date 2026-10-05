@@ -58,18 +58,47 @@
 - Multi-key rotation pool with auto-failover on HTTP 429 rate limits.
 - Sub-second Whisper transcription + Llama-3 AI title generator, SEO descriptions, formatted YouTube chapters, and viral tags.
 
+### 9. 🖥️ Native Desktop Window (Zero Browser Dependency)
+- Runs as a true native desktop application via Microsoft Edge WebView2 (`pywebview`).
+- **No Chrome Launched:** Eliminates background browser overhead and memory bloat.
+- **No Address Bar:** Clean, professional borderless UI with zero `127.0.0.1` localhost URLs.
+- **Low RAM Profile:** Slashes RAM consumption from 1.5GB+ down to ~150MB, prioritizing GPU VRAM and CPU cores for encoding.
+
+### 10. 📊 Tri-Bar Real-Time Progress Monitoring
+- Eliminates guesswork with 3 distinct color-coded live progress monitors:
+  - 🟣 **Twitch Stream Download Bar (Purple):** Real-time chunk transfer and stream speed.
+  - 🔴 **YouTube Reaction Download Bar (Red):** Direct media download and audio demux tracking.
+  - 🔷 **GPU Hardware Compositing Bar (Cyan):** Live rendering percentage, encoding FPS, elapsed time, and ETA.
+
+### 11. ⏱️ 1-Hour+ Long Video Audio Chunking & Whisper Resilience
+- Bypasses Groq Whisper's 25MB file size ceiling via automatic **10-minute smart audio chunking**.
+- Dispatches chunks in parallel across your multi-key pool, transcribing 1-hour audio in **8–12 seconds**.
+- Automatic timestamp offset stitching ensures zero subtitle drift across 60+ minute productions.
+- Exponential backoff retry logic handles HTTP 429 rate limits smoothly.
+
+### 12. 🧹 One-Click Storage Cache & Scratchpad Cleaner
+- Integrated disk usage inspector analyzing `data/temp/`, `data/downloads/`, and `data/outputs/`.
+- 1-Click safe garbage collection purges intermediate downloads and scratch audio chunks while keeping finished master exports safe.
+
 ---
 
 ## 🗂️ Project File Structure
 
 ```
 twitchyoutube/
-├── 1_RUN_APP.bat                        # One-click Windows desktop runner
-├── desktop_launcher.py                  # Borderless native MS Edge app mode launcher & port cleaner
+├── 1_RUN_APP.bat                        # One-click Windows desktop runner (dev mode)
+├── BUILD_INSTALLER.bat                  # One-click Windows Setup Installer builder (Setup.exe)
+├── BUILD_EXE.bat                        # One-click standalone executable packager (PyInstaller)
+├── desktop_launcher.py                  # Native WebView2 desktop launcher & port cleaner
+├── installer.iss                        # Inno Setup compiler definition script
 ├── requirements.txt                     # Python backend dependencies
-├── README.md                            # Studio overview & documentation
-├── api.md                               # REST API endpoints & payload specifications
-├── v2 UI TWITCH_YOUTUBE_REMIX_ENGINE_MASTER_BLUEPRINT.md # Master architectural blueprint & roadmap
+├── README.md                            # Studio overview & quickstart guide
+├── BRAIN.md                             # Comprehensive master architecture blueprint & system brain
+├── extra/                               # Test scripts, benchmarks & archived development files
+│
+├── tools/                               # Distribution & packaging utilities
+│   ├── create_installer.py              # Zero-dependency setup compiler & portable zip bundler
+│   └── installer_gui.py                 # Modern standalone Tkinter Windows Setup Wizard
 │
 ├── bin/                                 # Portable standalone multimedia binaries
 │   ├── ffmpeg.exe                       # High-speed GPU-enabled FFmpeg executable
@@ -79,9 +108,9 @@ twitchyoutube/
 │   ├── __init__.py                      # Package initializer
 │   ├── config.py                        # Path resolver, GPU encoder detection & error logging
 │   ├── api_pool.py                      # Groq API pool manager with latency tests & auto-failover
-│   ├── downloader.py                    # yt-dlp parallel slicer (anti-bot bypass) & media prober
+│   ├── downloader.py                    # yt-dlp parallel slicer (anti-bot bypass) & 2s fast prober
 │   ├── audio_engine.py                  # Pitch/tempo sync & anti-copyright acoustic filter chains
-│   ├── subtitle_generator.py            # Word-level Groq Whisper transcriber & 18 ASS subtitle styles
+│   ├── subtitle_generator.py            # Multilingual Whisper transcriber & 18 ASS subtitle styles
 │   ├── groq_metadata.py                 # Groq Llama-3 viral title, chapter & tag generator
 │   ├── turbo_renderer.py                # Master 5-layer single-pass FFmpeg hardware compositor
 │   ├── task_manager.py                  # Dual-worker asyncio queue, progress tracking & events
@@ -96,7 +125,7 @@ twitchyoutube/
 └── data/                                # Local studio runtime directories
     ├── api_keys.json                    # Local encrypted API key storage
     ├── settings.json                    # Hardware, audio & render preferences
-    ├── avatars/                         # Host PNG cutout library
+    ├── avatars/                         # Host PNG cutout library (includes default_avatar.png)
     ├── bgm/                             # Ambient background music library
     ├── downloads/                       # Sliced stream cache
     ├── temp/                            # Transcoding scratchpad & ASS subtitles
@@ -110,16 +139,26 @@ twitchyoutube/
 
 ### 1. Prerequisites
 - **Operating System**: Windows 10 or 11 (64-bit).
-- **Python**: Python 3.10+ installed and added to system PATH.
+- **Python**: Python 3.10+ installed and added to system PATH (for developer source runs).
 - **Hardware Acceleration (Recommended)**: NVIDIA GPU with NVENC, AMD GPU with AMF, or Intel QuickSync.
 
-### 2. Launching the Studio
+### 2. Launching the Studio (Development Mode)
 Double-click `1_RUN_APP.bat` inside the project folder:
-- Automatically resolves dependencies.
-- Boots the FastAPI server on `http://localhost:8000`.
-- Launches a sleek, borderless native desktop window.
+- Automatically verifies dependencies.
+- Boots the FastAPI server on `http://127.0.0.1:8899`.
+- Launches a sleek, hardware-accelerated native desktop window (WebView2).
 
-### 3. Step-by-Step Production Workflow
+### 3. Creating a 1-Click Windows Setup Installer
+Double-click `BUILD_INSTALLER.bat` in the root folder:
+- Packages the complete suite into a standalone Windows installer wizard: `dist/StreamMixStudio_Setup.exe`.
+- Also creates a standalone portable archive: `dist/StreamMixStudio_Portable.zip`.
+- Send `StreamMixStudio_Setup.exe` to anyone; they can double-click and install with 1 click without installing Python or Git! Creates Desktop and Start Menu shortcuts automatically.
+
+### 4. Creating a Standalone Binary Folder
+Double-click `BUILD_EXE.bat` in the root folder:
+- Bundles Python, Uvicorn, FastAPI, FFmpeg, and frontend assets via PyInstaller into `dist/StreamMixStudio/`.
+
+### 5. Step-by-Step Production Workflow
 1. **Layer 1: Background Gameplay**: Provide a Twitch stream/VOD URL, YouTube URL, or click **Local File** to pick a gameplay video. Set cut duration (`No Cut`, `5m`, `10m`, `15m`, or `Custom`).
 2. **Layer 2: Reaction Master Track**: Provide a YouTube video URL or local file. Set Gaussian blur, opacity (default 75%), video speed, voice pitch, and verify that the **Anti-Content-ID Protection Shield** is active.
 3. **Layer 3: Host Avatar Cutout**: Toggle avatar on/off, upload cutout PNG, choose outer glow (*Cyan, White, Gold, None*), and adjust slow-motion sway or audio bounce.

@@ -19,13 +19,14 @@ class GroqPoolManager:
     def get_client(self) -> Tuple[Groq, str]:
         """Returns the next healthy Groq client and key ID."""
         self.load_keys()
-        if not self.keys:
-            raise ValueError("No Groq API keys available in the API Pool! Please add a key in the API Pool tab.")
+        valid_keys = [k for k in self.keys if k.get("status") != "INVALID"]
+        if not valid_keys:
+            raise ValueError("No valid Groq API keys available in the API Pool! Please add or update keys in the API Pool tab.")
 
         now = time.time()
-        for i in range(len(self.keys)):
-            idx = (self.current_idx + i) % len(self.keys)
-            k = self.keys[idx]
+        for i in range(len(valid_keys)):
+            idx = (self.current_idx + i) % len(valid_keys)
+            k = valid_keys[idx]
 
             # Recover from rate limit cooldown after 60s
             if k.get("status") == "RATE_LIMITED":
@@ -34,7 +35,7 @@ class GroqPoolManager:
                     k["status"] = "HEALTHY"
                     k["last_error"] = None
 
-            if k.get("status") != "RATE_LIMITED":
+            if k.get("status") == "HEALTHY":
                 self.current_idx = idx
                 k["last_used"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
                 k["total_transcriptions"] = k.get("total_transcriptions", 0) + 1
@@ -42,8 +43,36 @@ class GroqPoolManager:
                 return Groq(api_key=k["key"]), k["id"]
 
         # If all rate limited, pick the first one and try
-        k = self.keys[self.current_idx]
+        k = valid_keys[0]
         return Groq(api_key=k["key"]), k["id"]
+
+    def get_available_clients(self) -> List[Tuple[Groq, str]]:
+        """Returns list of all currently healthy (GroqClient, key_id) pairs for parallel chunk dispatch."""
+        self.load_keys()
+        now = time.time()
+        clients = []
+        for k in self.keys:
+            if k.get("status") == "INVALID":
+                continue
+            if k.get("status") == "RATE_LIMITED":
+                if now > k.get("rate_limited_until", 0):
+                    k["status"] = "HEALTHY"
+                    k["last_error"] = None
+                else:
+                    continue
+            clients.append((Groq(api_key=k["key"]), k["id"]))
+        return clients
+
+    def mark_key_invalid(self, failed_key_id: str, reason: str = "Invalid API Key (401)"):
+        """Marks key as permanently invalid so it is skipped immediately."""
+        self.load_keys()
+        for k in self.keys:
+            if k["id"] == failed_key_id:
+                k["status"] = "INVALID"
+                k["last_error"] = reason
+        if self.keys:
+            self.current_idx = (self.current_idx + 1) % len(self.keys)
+        self.save_keys()
 
     def rotate_to_next(self, failed_key_id: str, reason: str = "Rate Limited (429)"):
         """Rotates to next available healthy key upon rate limit or failure."""

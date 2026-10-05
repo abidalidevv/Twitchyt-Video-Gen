@@ -157,13 +157,15 @@ def download_stream(
         "quiet": True,
         "no_warnings": True,
         "noplaylist": True,
-        "socket_timeout": 15,
+        "continuedl": True,
+        "socket_timeout": 30,
         "progress_hooks": [yt_hook],
         "merge_output_format": "mp4",
         "ffmpeg_location": ffmpeg_path,
-        "concurrent_fragment_downloads": 10,
-        "retries": 10,
-        "fragment_retries": 10,
+        "concurrent_fragment_downloads": 8,
+        "retries": 15,
+        "fragment_retries": 15,
+        "file_access_retries": 5,
         "buffersize": 1024 * 1024 * 16,
         "http_chunk_size": 10485760,
         "extractor_args": {
@@ -187,8 +189,20 @@ def download_stream(
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([cleaned_url])
     except Exception as e:
-        log_error("downloader", f"Download failed for URL: {cleaned_url}", exc=e)
-        raise RuntimeError(f"Download stream error: {e}")
+        # If range slicing failed (e.g. ffmpeg code 255 on live stream), fallback to standard full download
+        if "download_ranges" in ydl_opts:
+            print(f"[Downloader] Range cut failed ({e}). Falling back to full stream download...")
+            ydl_opts.pop("download_ranges", None)
+            ydl_opts.pop("force_keyframes_at_cuts", None)
+            try:
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl_fallback:
+                    ydl_fallback.download([cleaned_url])
+            except Exception as fb_err:
+                log_error("downloader", f"Fallback download also failed for URL: {cleaned_url}: {fb_err}", exc=fb_err)
+                raise RuntimeError(f"Download stream error: {fb_err}")
+        else:
+            log_error("downloader", f"Download failed for URL: {cleaned_url}", exc=e)
+            raise RuntimeError(f"Download stream error: {e}")
 
     return str(output_target.resolve())
 

@@ -70,7 +70,31 @@ def wait_for_server(timeout=15):
             time.sleep(0.5)
     return False
 
-def open_desktop_window():
+def launch_desktop_window() -> bool:
+    """
+    Launches a dedicated Native Desktop Application Window.
+    Uses Microsoft Edge WebView2 (pywebview) for a 100% native, borderless,
+    hardware-accelerated desktop experience without Chrome or localhost address bar.
+    """
+    # 1. Primary: Native WebView2 Desktop Window
+    try:
+        import webview
+        print("Launching Native Desktop Window (Hardware-Accelerated WebView2)...")
+        window = webview.create_window(
+            title="StreamMix Studio — Twitch + YouTube 1080p 60fps Remix Engine",
+            url=BASE_URL,
+            width=1440,
+            height=900,
+            min_size=(1100, 700),
+            background_color="#0b0f19",
+            text_select=True
+        )
+        webview.start(gui="edgechromium", debug=False)
+        return True
+    except Exception as e:
+        print(f"Native WebView2 note: {e}")
+
+    # 2. Fallback: Edge App Mode with isolated profile (never merges into user's browser tabs or shows URL bar)
     edge_paths = [
         os.path.expandvars(r"%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe"),
         os.path.expandvars(r"%ProgramFiles%\Microsoft\Edge\Application\msedge.exe"),
@@ -78,30 +102,48 @@ def open_desktop_window():
         r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
         r"C:\Program Files\Microsoft\Edge\Application\msedge.exe"
     ]
+    edge_profile = os.path.join(os.path.expanduser("~"), ".streammix", "app_profile")
+    os.makedirs(edge_profile, exist_ok=True)
 
+    for path in edge_paths:
+        if os.path.exists(path):
+            print("Launching Isolated Native App Mode via Edge...")
+            proc = subprocess.Popen([
+                path,
+                f"--app={BASE_URL}",
+                f"--user-data-dir={edge_profile}",
+                "--no-first-run",
+                "--no-default-browser-check",
+                "--window-size=1440,900"
+            ])
+            proc.wait()
+            return True
+
+    # 3. Fallback: Chrome App Mode with isolated profile
     chrome_paths = [
         os.path.expandvars(r"%ProgramFiles%\Google\Chrome\Application\chrome.exe"),
         os.path.expandvars(r"%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe"),
         os.path.expandvars(r"%LocalAppData%\Google\Chrome\Application\chrome.exe")
     ]
-
-    # Try Edge App Mode first
-    for path in edge_paths:
-        if os.path.exists(path):
-            print("Launching StreamMix Studio in Native Edge App Mode...")
-            subprocess.Popen([path, f"--app={BASE_URL}", "--window-size=1440,900"])
-            return
-
-    # Try Chrome App Mode
     for path in chrome_paths:
         if os.path.exists(path):
-            print("Launching StreamMix Studio in Native Chrome App Mode...")
-            subprocess.Popen([path, f"--app={BASE_URL}", "--window-size=1440,900"])
-            return
+            print("Launching Isolated App Mode via Chrome...")
+            proc = subprocess.Popen([
+                path,
+                f"--app={BASE_URL}",
+                f"--user-data-dir={edge_profile}",
+                "--no-first-run",
+                "--no-default-browser-check",
+                "--window-size=1440,900"
+            ])
+            proc.wait()
+            return True
 
-    # Fallback to default browser
+    # 4. Ultimate Fallback to default browser
     print("Opening in default browser...")
     webbrowser.open(BASE_URL)
+    return False
+
 
 def main():
     print("=" * 65)
@@ -116,22 +158,24 @@ def main():
     server_thread.start()
 
     print(f"Waiting for backend engine on {BASE_URL}...")
-    if wait_for_server():
-        print("Engine active and ready. Launching studio interface...")
-        open_desktop_window()
-    else:
-        print("Server took longer than expected. Opening browser...")
-        open_desktop_window()
+    if not wait_for_server():
+        print("[ERROR] Server startup timed out. Check firewall or port 8899.")
 
-    print("\n[INFO] Studio is running. Keep this console window open.")
-    print("[INFO] Press Ctrl+C in this console to terminate the studio.\n")
+    print("Engine active and ready. Launching native desktop window...")
+    is_blocking = launch_desktop_window()
 
-    try:
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        print("\nShutting down StreamMix Studio cleanly...")
-        sys.exit(0)
+    if not is_blocking:
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            pass
+
+    print("\nShutting down StreamMix Studio cleanly...")
+    kill_process_on_port(PORT)
+    sys.exit(0)
+
 
 if __name__ == "__main__":
     main()
+

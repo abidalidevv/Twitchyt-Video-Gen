@@ -18,9 +18,9 @@ const STATE = {
 
   // Avatar State
   enableAvatar: true,
-  avatarPath: '',
-  avatarUrl: '',
-  avatarSize: 420,
+  avatarPath: 'data/avatars/default_avatar.png',
+  avatarUrl: '/avatars/default_avatar.png',
+  avatarSize: 350,
   avatarOpacity: 1.0,
   avatarAnchor: 'right',
   avatarFlip: false,
@@ -32,11 +32,11 @@ const STATE = {
   // Captions State
   enableCaptions: true,
   captionPreset: 'capcut_yellow',
-  captionPosition: 'bottom',
-  captionSize: 'large',
+  captionPosition: 'center-left',
+  captionSize: 'medium',
   captionCustomSize: 150,
   captionFontFamily: 'default',
-  demoCaptionText: 'WAIT... DID HE REALLY GET AN UNFAIR ADVANTAGE?! WATCH THIS INSANE MOMENT!',
+  demoCaptionText: 'WAIT... DID HE REALLY?!',
   enableCaptionBg: false,
   captionBgColor: '#000000',
   captionBgOpacity: 75,
@@ -175,6 +175,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   await checkGpuHealth();
   await loadApiKeys();
+  await checkGroqApiHealth();
+  await loadStorageStats();
   await loadSettings();
   startTaskPolling();
 
@@ -438,6 +440,60 @@ window.toggleStageGrid = function() {
   if (btn) btn.classList.toggle('active', STATE.customLayout.gridVisible);
 };
 
+window.setCaptionPositionPreset = function(pos) {
+  STATE.customLayout.caption.x = null;
+  STATE.customLayout.caption.y = null;
+  STATE.customLayout.caption.w = null;
+  STATE.customLayout.caption.h = null;
+  const captionBox = document.getElementById('stage-caption-box');
+
+  ['cap-pos-left', 'cap-pos-right', 'cap-pos-bottom', 'cap-pos-center', 'btn-subs-left', 'btn-subs-right'].forEach(id => {
+    document.getElementById(id)?.classList.remove('active');
+  });
+
+  if (pos === 'left') {
+    STATE.captionPosition = 'center-left';
+    document.getElementById('btn-subs-left')?.classList.add('active');
+    document.getElementById('cap-pos-left')?.classList.add('active');
+    if (captionBox) {
+      captionBox.style.left = '8%';
+      captionBox.style.width = '36%';
+      captionBox.style.top = '48%';
+      captionBox.style.height = 'auto';
+    }
+  } else if (pos === 'right') {
+    STATE.captionPosition = 'center-right';
+    document.getElementById('btn-subs-right')?.classList.add('active');
+    document.getElementById('cap-pos-right')?.classList.add('active');
+    if (captionBox) {
+      captionBox.style.left = '56%';
+      captionBox.style.width = '36%';
+      captionBox.style.top = '22%';
+      captionBox.style.height = 'auto';
+    }
+  } else if (pos === 'bottom') {
+    STATE.captionPosition = 'bottom';
+    document.getElementById('cap-pos-bottom')?.classList.add('active');
+    if (captionBox) {
+      captionBox.style.left = '20%';
+      captionBox.style.width = '60%';
+      captionBox.style.top = '65%';
+      captionBox.style.height = 'auto';
+    }
+  } else {
+    STATE.captionPosition = 'center';
+    document.getElementById('cap-pos-center')?.classList.add('active');
+    if (captionBox) {
+      captionBox.style.left = '32%';
+      captionBox.style.width = '36%';
+      captionBox.style.top = '48%';
+      captionBox.style.height = 'auto';
+    }
+  }
+  syncStage();
+  showToast(`Captions aligned: ${pos.toUpperCase()}`, 'info');
+};
+
 window.resetStageLayout = function() {
   STATE.customLayout.avatar.x = null;
   STATE.customLayout.avatar.y = null;
@@ -445,23 +501,26 @@ window.resetStageLayout = function() {
   STATE.customLayout.caption.y = null;
   STATE.customLayout.caption.w = null;
   STATE.customLayout.caption.h = null;
-  STATE.captionPosition = 'bottom';
+  STATE.captionPosition = 'center-left';
   const captionBox = document.getElementById('stage-caption-box');
   if (captionBox) {
-    captionBox.style.width = '60%';
+    captionBox.style.width = '36%';
     captionBox.style.height = 'auto';
-    captionBox.style.left = '20%';
-    captionBox.style.top = '60%';
+    captionBox.style.left = '8%';
+    captionBox.style.top = '48%';
   }
   const avatarBox = document.getElementById('stage-avatar-box');
   if (avatarBox) {
     avatarBox.style.top = 'auto';
     avatarBox.style.bottom = '0%';
+    avatarBox.style.right = '4%';
+    avatarBox.style.left = 'auto';
   }
-  document.querySelectorAll('#captions-layer-controls .btn-option').forEach(b => {
-    if (b.id && b.id.startsWith('cap-pos-')) b.classList.remove('active');
+  ['cap-pos-right', 'cap-pos-bottom', 'cap-pos-center', 'btn-subs-right'].forEach(id => {
+    document.getElementById(id)?.classList.remove('active');
   });
-  document.getElementById('cap-pos-bottom')?.classList.add('active');
+  document.getElementById('btn-subs-left')?.classList.add('active');
+  document.getElementById('cap-pos-left')?.classList.add('active');
   syncStage();
   showToast('Stage layout reset to safe defaults.', 'info');
 };
@@ -592,14 +651,24 @@ function syncStage() {
         captionBox.style.height = `${(STATE.customLayout.caption.h / 1080) * 100}%`;
       }
     } else {
-      captionBox.style.left = '20%';
-      captionBox.style.width = '60%';
-      captionBox.style.height = 'auto';
-      if (STATE.captionPosition === 'center') {
-        captionBox.style.top = '42%';
+      if (STATE.captionPosition === 'center-left') {
+        captionBox.style.left = '8%';
+        captionBox.style.width = '36%';
+        captionBox.style.top = '48%';
+      } else if (STATE.captionPosition === 'center-right') {
+        captionBox.style.left = '56%';
+        captionBox.style.width = '36%';
+        captionBox.style.top = '22%';
+      } else if (STATE.captionPosition === 'center') {
+        captionBox.style.left = '32%';
+        captionBox.style.width = '36%';
+        captionBox.style.top = '48%';
       } else {
-        captionBox.style.top = '60%';
+        captionBox.style.left = '20%';
+        captionBox.style.width = '60%';
+        captionBox.style.top = '65%';
       }
+      captionBox.style.height = 'auto';
     }
   }
 }
@@ -712,21 +781,7 @@ window.selectCaptionPreset = function(card) {
 };
 
 window.setCaptionPresetPos = function(pos) {
-  STATE.captionPosition = pos;
-  STATE.customLayout.caption.x = null;
-  STATE.customLayout.caption.y = null;
-  STATE.customLayout.caption.w = null;
-  STATE.customLayout.caption.h = null;
-  const captionBox = document.getElementById('stage-caption-box');
-  if (captionBox) {
-    captionBox.style.width = '60%';
-    captionBox.style.height = 'auto';
-    captionBox.style.left = '20%';
-    captionBox.style.top = (pos === 'center') ? '42%' : '60%';
-  }
-  document.querySelectorAll('#captions-layer-controls .two-col .btn-option').forEach(b => b.classList.remove('active'));
-  document.getElementById(`cap-pos-${pos}`)?.classList.add('active');
-  syncStage();
+  setCaptionPositionPreset(pos);
 };
 
 window.setCaptionSize = function(size) {
@@ -1328,20 +1383,14 @@ function collectPayload(isPreview = false) {
   if (STATE.sourceModes.twitch === 'url') {
     twitchPath = twitchInput;
   } else {
-    twitchPath = STATE.twitchLocalPath;
-    if (!twitchPath && twitchInput && (twitchInput.includes('/') || twitchInput.includes('\\') || twitchInput.toLowerCase().endsWith('.mp4'))) {
-      twitchPath = twitchInput;
-    }
+    twitchPath = STATE.twitchLocalPath || twitchInput;
   }
 
   let ytPath = '';
   if (STATE.sourceModes.yt === 'url') {
     ytPath = ytInput;
   } else {
-    ytPath = STATE.ytLocalPath;
-    if (!ytPath && ytInput && (ytInput.includes('/') || ytInput.includes('\\') || ytInput.toLowerCase().endsWith('.mp4'))) {
-      ytPath = ytInput;
-    }
+    ytPath = STATE.ytLocalPath || ytInput;
   }
 
   if (!twitchPath) {
@@ -1391,17 +1440,37 @@ function collectPayload(isPreview = false) {
     avatar_crop_bottom: Math.round(Number(STATE.avatarCrop?.bottom || document.getElementById('avatar-crop-bottom')?.value || 0)),
 
     // Captions Parameters (With Font Family & Custom Background Box)
-    enable_captions: STATE.enableCaptions,
+    enable_captions: document.getElementById('enable-captions') ? document.getElementById('enable-captions').checked : !!STATE.enableCaptions,
     caption_preset: STATE.captionPreset,
     caption_font_family: STATE.captionFontFamily || 'default',
     caption_size: (STATE.captionSize === 'custom' ? (STATE.captionCustomSize || 150).toString() : (STATE.captionSize || 'large')),
     enable_caption_bg: !!STATE.enableCaptionBg,
     caption_bg_color: STATE.captionBgColor || '#000000',
     caption_bg_opacity: STATE.captionBgOpacity !== undefined ? STATE.captionBgOpacity : 75,
-    caption_x: STATE.customLayout.caption.x !== null ? Math.round(Number(STATE.customLayout.caption.x)) : null,
-    caption_y: STATE.customLayout.caption.y !== null ? Math.round(Number(STATE.customLayout.caption.y)) : null,
-    caption_w: STATE.customLayout.caption.w !== null ? Math.round(Number(STATE.customLayout.caption.w)) : null,
-    caption_h: STATE.customLayout.caption.h !== null ? Math.round(Number(STATE.customLayout.caption.h)) : null,
+    caption_x: (() => {
+      if (STATE.customLayout.caption.x !== null) return Math.round(Number(STATE.customLayout.caption.x));
+      if (STATE.captionPosition === 'center-left') return Math.round(1920 * 0.08);
+      if (STATE.captionPosition === 'center-right') return Math.round(1920 * 0.56);
+      if (STATE.captionPosition === 'center') return Math.round(1920 * 0.32);
+      return Math.round(1920 * 0.20);
+    })(),
+    caption_y: (() => {
+      if (STATE.customLayout.caption.y !== null) return Math.round(Number(STATE.customLayout.caption.y));
+      if (STATE.captionPosition === 'center-left') return Math.round(1080 * 0.48);
+      if (STATE.captionPosition === 'center-right') return Math.round(1080 * 0.22);
+      if (STATE.captionPosition === 'center') return Math.round(1080 * 0.48);
+      return Math.round(1080 * 0.65);
+    })(),
+    caption_w: (() => {
+      if (STATE.customLayout.caption.w !== null) return Math.round(Number(STATE.customLayout.caption.w));
+      if (STATE.captionPosition === 'bottom') return Math.round(1920 * 0.60);
+      return Math.round(1920 * 0.36);
+    })(),
+    caption_h: (() => {
+      if (STATE.customLayout.caption.h !== null) return Math.round(Number(STATE.customLayout.caption.h));
+      if (STATE.captionPosition === 'bottom') return Math.round(1080 * 0.20);
+      return Math.round(1080 * 0.16);
+    })(),
 
     bgm_path: document.getElementById('bgm-path')?.value || null,
     bgm_volume: (parseInt(document.getElementById('bgm-volume')?.value) || 7) / 100
@@ -1764,6 +1833,43 @@ function renderTasksInDrawer(tasks) {
         <div class="task-progress-bar-bg">
           <div class="task-progress-bar-fill" style="width: ${Math.min(100, Math.max(0, task.progress))}%"></div>
         </div>
+
+        <!-- Multi-Bar Live Download Monitors (Twitch in Purple, YouTube in Red) -->
+        ${(() => {
+          const dl = task.downloads || {};
+          const tw = dl.twitch || {};
+          const yt = dl.youtube || {};
+          const twPct = tw.pct !== undefined ? tw.pct : (isDone ? 100 : 0);
+          const ytPct = yt.pct !== undefined ? yt.pct : (isDone ? 100 : 0);
+          const twStatus = tw.status || (isDone ? '✓ Ready' : (tw.is_local ? '✓ Local File' : 'Waiting...'));
+          const ytStatus = yt.status || (isDone ? '✓ Ready' : (yt.is_local ? '✓ Local File' : 'Waiting...'));
+
+          return `
+            <div class="task-sub-bars-container">
+              <!-- Twitch Stream Download Bar (Purple #9146ff) -->
+              <div class="task-sub-bar-row">
+                <div class="task-sub-bar-label">
+                  <span><i class="fab fa-twitch" style="color: #9146ff"></i> Twitch Stream</span>
+                  <span class="sub-bar-val" style="color: ${twPct >= 100 ? 'var(--accent-green)' : '#bf55ec'}">${twStatus}</span>
+                </div>
+                <div class="task-sub-progress-bg">
+                  <div class="task-sub-progress-fill sub-fill-twitch" style="width: ${Math.min(100, Math.max(0, twPct))}%"></div>
+                </div>
+              </div>
+
+              <!-- YouTube Video Download Bar (Red #ef4444) -->
+              <div class="task-sub-bar-row">
+                <div class="task-sub-bar-label">
+                  <span><i class="fab fa-youtube" style="color: #ef4444"></i> YouTube Main</span>
+                  <span class="sub-bar-val" style="color: ${ytPct >= 100 ? 'var(--accent-green)' : '#f87171'}">${ytStatus}</span>
+                </div>
+                <div class="task-sub-progress-bg">
+                  <div class="task-sub-progress-fill sub-fill-youtube" style="width: ${Math.min(100, Math.max(0, ytPct))}%"></div>
+                </div>
+              </div>
+            </div>
+          `;
+        })()}
         
         <div class="task-status-row">
           <div class="task-progress-large">
@@ -1939,6 +2045,7 @@ window.deleteKey = async function(keyId) {
     if (res.ok) {
       showToast('Key removed.', 'info');
       await loadApiKeys();
+      await checkGroqApiHealth();
     }
   } catch (err) {
     showToast(`Error: ${err.message}`, 'error');
@@ -1962,6 +2069,7 @@ document.getElementById('form-add-key')?.addEventListener('submit', async (e) =>
       document.getElementById('new-key-label').value = '';
       document.getElementById('new-key-value').value = '';
       await loadApiKeys();
+      await checkGroqApiHealth();
     } else {
       const d = await res.json();
       showToast(`Error: ${d.detail}`, 'error');
@@ -1970,6 +2078,152 @@ document.getElementById('form-add-key')?.addEventListener('submit', async (e) =>
     showToast(`Error: ${err.message}`, 'error');
   }
 });
+
+// --- GROQ API HEALTH CHECK & ALERT BANNER ---
+async function checkGroqApiHealth() {
+  const banner = document.getElementById('groq-health-banner');
+  const bannerMsg = document.getElementById('groq-health-msg');
+  const bannerTitle = document.getElementById('groq-health-title');
+  if (!banner) return;
+
+  try {
+    const res = await fetch('/api/keys/status');
+    if (!res.ok) return;
+    const data = await res.json();
+
+    if (!data.has_working_key || data.healthy_count === 0) {
+      banner.classList.remove('hidden');
+      if (bannerTitle) bannerTitle.textContent = '⚠️ Groq Whisper API Alert:';
+      if (bannerMsg) {
+        bannerMsg.innerHTML = data.total_keys === 0
+          ? 'No Groq API keys found! Auto-captions & transcriptions will fail. Please click <strong>Update / Replace Key</strong> below.'
+          : `${data.message} Please update your key in the API Keys Pool to enable auto-captions.`;
+      }
+    } else {
+      banner.classList.add('hidden');
+      console.log(`[GroqPool] Connected & Healthy: ${data.healthy_count} valid key(s).`);
+    }
+  } catch (err) {
+    console.warn('Groq health check note:', err);
+  }
+}
+
+window.switchToApiKeysTab = function() {
+  const tabBtn = document.getElementById('tabBtnPool');
+  if (tabBtn) tabBtn.click();
+  dismissGroqBanner();
+};
+
+window.dismissGroqBanner = function() {
+  const banner = document.getElementById('groq-health-banner');
+  if (banner) banner.classList.add('hidden');
+};
+
+// --- STORAGE & CACHE CLEANER MANAGEMENT ---
+async function loadStorageStats(updateModal = false) {
+  try {
+    const res = await fetch('/api/storage/stats');
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data.success) return;
+
+    // Update Header Button Badge
+    const badge = document.getElementById('storageHeaderBadge');
+    if (badge && data.cache_reclaimable) {
+      badge.textContent = `Cache: ${data.cache_reclaimable.formatted}`;
+    }
+
+    if (updateModal) {
+      const tempSize = document.getElementById('storage-temp-size');
+      const tempSub = document.getElementById('storage-temp-sub');
+      const dlSize = document.getElementById('storage-downloads-size');
+      const dlSub = document.getElementById('storage-downloads-sub');
+      const outSize = document.getElementById('storage-outputs-size');
+      const reclaimTotal = document.getElementById('storage-reclaim-total');
+
+      if (tempSize) tempSize.textContent = data.temp.formatted;
+      if (tempSub) tempSub.textContent = `data/temp/ (${data.temp.files} files)`;
+      if (dlSize) dlSize.textContent = data.downloads.formatted;
+      if (dlSub) dlSub.textContent = `data/downloads/ (${data.downloads.files} files)`;
+      if (outSize) outSize.textContent = data.outputs.formatted;
+      if (reclaimTotal) reclaimTotal.textContent = data.cache_reclaimable.formatted;
+    }
+  } catch (err) {
+    console.warn('Failed to load storage stats:', err);
+  }
+}
+
+window.openStorageModal = function() {
+  const modal = document.getElementById('modal-storage-cleaner');
+  const resBox = document.getElementById('storage-clean-result');
+  if (resBox) resBox.classList.add('hidden');
+  if (modal) {
+    modal.classList.remove('hidden');
+    loadStorageStats(true);
+  }
+};
+
+window.closeStorageModal = function() {
+  const modal = document.getElementById('modal-storage-cleaner');
+  if (modal) modal.classList.add('hidden');
+};
+
+window.executeStorageClean = async function() {
+  const cleanTemp = document.getElementById('clean-check-temp')?.checked ?? true;
+  const cleanDl = document.getElementById('clean-check-downloads')?.checked ?? true;
+  const cleanOut = document.getElementById('clean-check-outputs')?.checked ?? false;
+
+  if (!cleanTemp && !cleanDl && !cleanOut) {
+    showToast('Please select at least one cache category to clean.', 'info');
+    return;
+  }
+
+  if (cleanOut) {
+    const confirmOut = confirm('⚠️ WARNING: You selected to delete completed master output videos in data/outputs/. Are you sure you want to delete finished renders?');
+    if (!confirmOut) return;
+  }
+
+  const btn = document.getElementById('btn-execute-clean');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cleaning...';
+  }
+
+  try {
+    const res = await fetch('/api/storage/clean', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        clean_temp: cleanTemp,
+        clean_downloads: cleanDl,
+        clean_outputs: cleanOut
+      })
+    });
+    const result = await res.json();
+    if (result.success) {
+      const resBox = document.getElementById('storage-clean-result');
+      if (resBox) {
+        resBox.classList.remove('hidden');
+        resBox.innerHTML = `
+          <strong><i class="fas fa-check-circle"></i> Clean Complete!</strong><br>
+          Freed <strong>${result.freed_formatted}</strong> (${result.deleted_count} files removed).
+          ${!cleanOut ? '<span>Completed master videos were <strong>safely preserved</strong>.</span>' : ''}
+        `;
+      }
+      showToast(`✓ Freed ${result.freed_formatted} of project cache!`, 'success');
+      await loadStorageStats(true);
+    } else {
+      showToast('Cleanup encountered an issue.', 'error');
+    }
+  } catch (err) {
+    showToast(`Cleanup error: ${err.message}`, 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-trash-alt"></i> Purge Selected Cache';
+    }
+  }
+};
 
 // Groq AI SEO Metadata Generator
 function initMetadataGenerator() {

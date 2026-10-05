@@ -617,10 +617,10 @@ body {
 
 /* ── Host Avatar Box on Stage ─────────────────────────────────────────────── */
 .stage-avatar-box {
-  width: 25%;
-  height: 48%;
+  width: 22%;
+  height: 40%;
   bottom: 0%;
-  right: 6%;
+  right: 4%;
   z-index: 12;
   display: flex;
   align-items: flex-end;
@@ -649,16 +649,16 @@ body {
 
 /* ── Captions Box on Stage ────────────────────────────────────────────────── */
 .stage-caption-box {
-  width: 60%;
-  min-height: 14%;
-  top: 60%;
-  left: 20%;
+  width: 36%;
+  min-height: 8%;
+  top: 48%;
+  left: 8%;
   z-index: 18;
   display: flex;
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 8px 14px;
+  padding: 6px 12px;
   background: rgba(0, 0, 0, 0.2);
   border: 1px dashed rgba(255, 255, 255, 0.25);
   border-radius: var(--radius-sm);
@@ -1960,8 +1960,10 @@ input:checked + .slider:before { transform: translateX(16px); }
 
 .floating-task-pill {
   position: fixed;
-  bottom: 24px;
+  top: 76px;
   right: 24px;
+  bottom: auto;
+  left: auto;
   z-index: 99999;
   background: rgba(15, 23, 42, 0.94);
   border: 1px solid var(--accent-cyan);
@@ -2397,3 +2399,268 @@ input:checked + .slider:before { transform: translateX(16px); }
   backdrop-filter: blur(4px);
   transition: background 0.15s ease, border-radius 0.2s ease;
 }
+
+/* ── Multi-Bar Parallel Download Progress Tracking ───────────────────────── */
+.task-sub-bars-container {
+  margin-top: 8px;
+  padding: 6px 8px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.task-sub-bar-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.task-sub-bar-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.task-sub-bar-label i {
+  margin-right: 4px;
+}
+
+.sub-bar-val {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9.5px;
+  font-weight: 600;
+  color: #cbd5e1;
+}
+
+.task-sub-progress-bg {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.task-sub-progress-fill {
+  height: 100%;
+  transition: width 0.3s ease;
+  border-radius: 2px;
+}
+
+.sub-fill-twitch {
+  background: linear-gradient(90deg, #9146ff, #b76eff);
+  box-shadow: 0 0 6px rgba(145, 70, 255, 0.4);
+}
+
+.sub-fill-youtube {
+  background: linear-gradient(90deg, #ef4444, #f87171);
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.4);
+}
+
+/* ── Groq API Health Banner ──────────────────────────────────────────────── */
+.api-health-banner {
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0.22), rgba(245, 158, 11, 0.18));
+  border-bottom: 1px solid rgba(239, 68, 68, 0.35);
+  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.15);
+  padding: 8px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  z-index: 100;
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from { transform: translateY(-100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.api-health-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.banner-icon {
+  font-size: 16px;
+  color: #f59e0b;
+  filter: drop-shadow(0 0 6px rgba(245, 158, 11, 0.6));
+  animation: pulseWarning 2s infinite ease-in-out;
+}
+
+@keyframes pulseWarning {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.15); opacity: 0.8; }
+}
+
+.banner-text {
+  font-size: 12px;
+  color: #f8fafc;
+}
+
+.banner-text strong {
+  color: #fbbf24;
+  margin-right: 6px;
+}
+
+.banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-banner-action {
+  background: rgba(245, 158, 11, 0.25);
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  color: #fbbf24;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s;
+}
+
+.btn-banner-action:hover {
+  background: rgba(245, 158, 11, 0.4);
+  transform: translateY(-1px);
+}
+
+.btn-banner-dismiss {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px;
+  line-height: 1;
+  transition: color 0.2s;
+}
+
+.btn-banner-dismiss:hover {
+  color: #fff;
+}
+
+/* ── Storage & Cache Cleaner Modal ───────────────────────────────────────── */
+.modal-storage-card {
+  max-width: 580px;
+  width: 95%;
+}
+
+.storage-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin-bottom: 14px;
+}
+
+.storage-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.storage-stat-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.storage-stat-card.safe-card {
+  border-color: rgba(16, 185, 129, 0.35);
+  background: rgba(16, 185, 129, 0.06);
+}
+
+.storage-stat-card .stat-icon {
+  font-size: 16px;
+}
+
+.storage-stat-card .stat-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  display: block;
+}
+
+.storage-stat-card .stat-val {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-main);
+  display: block;
+  margin: 2px 0;
+}
+
+.storage-stat-card .stat-sub {
+  font-size: 9.5px;
+  color: var(--text-muted);
+  display: block;
+}
+
+.storage-cleanup-options {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.storage-check-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 12px;
+  color: #e2e8f0;
+  cursor: pointer;
+  user-select: none;
+}
+
+.storage-check-row input[type="checkbox"] {
+  accent-color: var(--accent-cyan);
+  width: 15px;
+  height: 15px;
+  margin-top: 2px;
+  cursor: pointer;
+}
+
+.storage-check-row.danger-row {
+  color: #fca5a5;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.storage-check-row.danger-row input[type="checkbox"] {
+  accent-color: var(--accent-rose);
+}
+
+.storage-result-msg {
+  font-size: 12px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #6ee7b7;
+  margin-top: 10px;
+}
+
+.storage-reclaim-text {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+

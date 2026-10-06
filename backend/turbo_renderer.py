@@ -172,8 +172,6 @@ def render_stream_mix(
     is_30s_preview = bool(params.get("is_preview", False))
     if is_30s_preview:
         render_duration = min(30.0, master_duration)
-        slice_offset = max(0.0, (master_duration / 2.0) - 15.0)
-        yt_start = yt_start + slice_offset
     else:
         render_duration = master_duration
 

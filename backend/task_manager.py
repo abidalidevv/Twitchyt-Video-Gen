@@ -272,15 +272,8 @@ class StreamMixTaskManager:
                         temp_audio = str((TEMP_DIR / f"speech_{task_id}.mp3").resolve())
                         yt_start_offset = float(params.get("yt_start_sec", 0.0) or 0.0)
 
-                        # KEY FIX: For 30s preview, turbo_renderer.py seeks to the MIDDLE
-                        # of the video (slice_offset = duration/2 - 15). We MUST extract audio
-                        # from the exact same position, otherwise captions will transcribe the
-                        # beginning while the video plays the middle — causing total mismatch!
                         if is_preview:
                             extract_dur = 30.0
-                            if target_duration and target_duration > 30.0:
-                                slice_offset = max(0.0, (target_duration / 2.0) - 15.0)
-                                yt_start_offset = yt_start_offset + slice_offset
                         else:
                             extract_dur = target_duration or 60.0
 
@@ -304,9 +297,6 @@ class StreamMixTaskManager:
                             words = await asyncio.to_thread(
                                 transcribe_audio_words, temp_audio, extract_dur, caption_lang
                             )
-                            if not words:
-                                from .subtitle_generator import generate_fallback_speech_words
-                                words = generate_fallback_speech_words(extract_dur)
                             if words:
                                 ass_file = create_ass_subtitles(
                                     words=words,

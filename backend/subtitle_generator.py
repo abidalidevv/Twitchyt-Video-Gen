@@ -283,8 +283,11 @@ def sec_to_ass_time(sec: float) -> str:
     return f"{hrs}:{mins:02d}:{secs:02d}.{centis:02d}"
 
 
-def _transcribe_single_audio_file(file_path: str, max_retries: int = 3) -> List[Dict[str, Any]]:
-    """Transcribes a single audio file (<25MB) using available healthy Groq keys with auto-retry and 429 backoff."""
+def _transcribe_single_audio_file(file_path: str, max_retries: int = 3, language: Optional[str] = None) -> List[Dict[str, Any]]:
+    """
+    Transcribes a single audio file (<25MB) using available healthy Groq keys with auto-retry and 429 backoff.
+    If `language` is provided (e.g., 'hi', 'ur', 'en'), Whisper is forced to that language for better accuracy.
+    """
     max_attempts = max(max_retries, len(groq_pool.keys) * 2)
     attempts = 0
     backoff = 2.5
@@ -297,12 +300,16 @@ def _transcribe_single_audio_file(file_path: str, max_retries: int = 3) -> List[
 
         try:
             with open(file_path, "rb") as af:
-                resp = client.audio.transcriptions.create(
-                    file=af,
-                    model="whisper-large-v3",
-                    response_format="verbose_json",
-                    timestamp_granularities=["word"]
-                )
+                kwargs = {
+                    "file": af,
+                    "model": "whisper-large-v3",
+                    "response_format": "verbose_json",
+                    "timestamp_granularities": ["word"]
+                }
+                # Forcing language prevents Whisper from hallucinating wrong language
+                if language:
+                    kwargs["language"] = language
+                resp = client.audio.transcriptions.create(**kwargs)
             words = getattr(resp, "words", None)
             if not words and isinstance(resp, dict):
                 words = resp.get("words", [])
@@ -322,12 +329,23 @@ def _transcribe_single_audio_file(file_path: str, max_retries: int = 3) -> List[
     return []
 
 
-def transcribe_audio_words(audio_file_path: str, total_duration: Optional[float] = None) -> List[Dict[str, Any]]:
+def transcribe_audio_words(
+    audio_file_path: str,
+    total_duration: Optional[float] = None,
+    language: Optional[str] = None
+) -> List[Dict[str, Any]]:
     """
     Transcribes audio file using Groq Whisper with word-level timestamps.
     Automatically handles files exceeding Groq's 25MB limit or long durations (>600s)
     by slicing into 10-minute chunks and dispatching in parallel across all available
     Groq API keys in the pool!
+
+    Args:
+        audio_file_path: Path to extracted audio file.
+        total_duration:  Known duration in seconds (skips ffprobe re-check).
+        language:        ISO-639-1 language code hint for Whisper (e.g. 'en', 'hi', 'ur').
+                         If None, Whisper auto-detects. Providing this prevents hallucination
+                         where Whisper guesses the wrong language and transcribes garbage.
     """
     if not os.path.exists(audio_file_path):
         return []
@@ -348,7 +366,7 @@ def transcribe_audio_words(audio_file_path: str, total_duration: Optional[float]
 
     # If small file and <= 10 mins, transcribe directly
     if file_size <= MAX_FILE_SIZE and (duration <= 0 or duration <= CHUNK_DURATION_SEC):
-        return _transcribe_single_audio_file(audio_file_path)
+        return _transcribe_single_audio_file(audio_file_path, language=language)
 
     # Otherwise: Large or Long Video! Chunk into 10-minute segments
     ffmpeg_bin = find_ffmpeg()
@@ -379,17 +397,16 @@ def transcribe_audio_words(audio_file_path: str, total_duration: Optional[float]
         chunk_idx += 1
 
     if not chunks:
-        return _transcribe_single_audio_file(audio_file_path)
+        return _transcribe_single_audio_file(audio_file_path, language=language)
 
     # Parallel transcription using available Groq pool keys
-    all_words = []
     chunk_results = {}
     healthy_clients = groq_pool.get_available_clients()
     max_workers = max(1, min(5, len(healthy_clients) or 1))
 
     def process_chunk(chunk_info):
         c_idx, offset_sec, c_file = chunk_info
-        words = _transcribe_single_audio_file(c_file)
+        words = _transcribe_single_audio_file(c_file, language=language)
         shifted = []
         for w in words:
             shifted.append({
@@ -413,6 +430,7 @@ def transcribe_audio_words(audio_file_path: str, total_duration: Optional[float]
             except Exception as e:
                 log_error("subtitle_generator", f"Chunk transcription failed: {e}")
 
+    all_words = []
     for idx in sorted(chunk_results.keys()):
         all_words.extend(chunk_results[idx])
 
@@ -571,7 +589,9 @@ def create_ass_subtitles(
     outline_c   = style.get("outline_color", "&H00000000")
     shadow_c    = style.get("shadow_color", "&H99000000")
     bold        = style.get("bold", 1)
-    uppercase   = style.get("uppercase", True)
+    # NOTE: Do NOT re-assign uppercase here — it was already set correctly above (line ~534)
+    # to False for Indic/Arabic scripts. Reassigning from style would override that fix.
+    # uppercase is kept from the language-aware assignment above.
 
     # ── Position anchor from preview bounding box ─────────────────────────────
     if custom_x is not None and custom_y is not None:

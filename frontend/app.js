@@ -1505,6 +1505,10 @@ function initSliceModal() {
     modal?.classList.add('hidden');
     if (player) {
       player.pause();
+      if (player.src && player.src.startsWith('blob:')) {
+        try { URL.revokeObjectURL(player.src); } catch (_) {}
+      }
+      player.src = '';
     }
   });
 

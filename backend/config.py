@@ -165,6 +165,7 @@ def detect_hardware_encoder() -> str:
         ("h264_nvenc", "Nvidia NVENC"),
         ("h264_qsv", "Intel QuickSync (QSV)"),
         ("h264_amf", "AMD AMF"),
+        ("h264_mf", "Windows MediaFoundation"),
         ("libx264", "Software CPU (libx264)")
     ]
 
@@ -192,16 +193,24 @@ def detect_hardware_encoder() -> str:
 
 
 def load_settings() -> dict:
+    merged = DEFAULT_SETTINGS.copy()
     if SETTINGS_FILE.exists():
         try:
             with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
                 saved = json.load(f)
-                merged = DEFAULT_SETTINGS.copy()
                 merged.update(saved)
-                return merged
         except Exception:
             pass
-    return DEFAULT_SETTINGS.copy()
+    # Machine-independent portability: sanitize paths if settings moved across PCs
+    for path_key in ("output_dir", "bgm_path", "avatar_path"):
+        if path_key in merged and merged[path_key]:
+            try:
+                val = Path(str(merged[path_key]))
+                if not val.exists():
+                    merged[path_key] = DEFAULT_SETTINGS.get(path_key)
+            except Exception:
+                merged[path_key] = DEFAULT_SETTINGS.get(path_key)
+    return merged
 
 
 def save_settings(new_settings: dict) -> dict:

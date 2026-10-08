@@ -48,7 +48,10 @@ def build_audio_filter_chain(
     if abs(volume - 1.0) > 0.02:
         filters.append(f"volume={volume:.2f}")
 
-    return ",".join(filters) if filters else "anull"
+    # 5. 🔒 Microsecond Audio-Video Lipsync Locking (Prevents drift in long 30m-2hr renders)
+    filters.append("aresample=async=1000")
+
+    return ",".join(filters)
 
 
 def build_video_shield_filter() -> str:

@@ -16,11 +16,22 @@ def is_url(string_val: str) -> bool:
     return bool(re.match(r'^https?://', string_val.strip(), re.IGNORECASE))
 
 
+_PROBE_CACHE: Dict[str, Dict[str, Any]] = {}
+
+
 def probe_local_media(file_path: str) -> Dict[str, Any]:
-    """Uses ffprobe to inspect local video or audio duration and streams."""
+    """Uses ffprobe to inspect local video or audio duration and streams with in-memory 0ms caching."""
     p = Path(file_path)
     if not p.exists():
         raise FileNotFoundError(f"Local file does not exist: {file_path}")
+
+    # In-memory FFprobe cache: return in 0ms if file unmodified
+    try:
+        cache_key = f"{str(p.resolve())}_{p.stat().st_mtime}"
+        if cache_key in _PROBE_CACHE:
+            return _PROBE_CACHE[cache_key].copy()
+    except Exception:
+        cache_key = None
 
     ffprobe_bin = find_ffprobe()
     cmd = [
@@ -50,7 +61,7 @@ def probe_local_media(file_path: str) -> Dict[str, Any]:
                     height = int(s.get("height", 1080))
                 elif s.get("codec_type") == "audio":
                     has_audio = True
-            return {
+            result = {
                 "title": p.stem,
                 "duration": round(duration, 2),
                 "path": str(p.resolve()),
@@ -60,6 +71,9 @@ def probe_local_media(file_path: str) -> Dict[str, Any]:
                 "has_audio": has_audio,
                 "thumbnail": None
             }
+            if cache_key:
+                _PROBE_CACHE[cache_key] = result
+            return result
     except Exception as e:
         print(f"[Downloader] Error probing local file: {e}")
 
@@ -199,9 +213,22 @@ def download_stream(
                     ydl_fallback.download([cleaned_url])
             except Exception as fb_err:
                 log_error("downloader", f"Fallback download also failed for URL: {cleaned_url}: {fb_err}", exc=fb_err)
+                # Purge incomplete partial files
+                for partial in DOWNLOADS_DIR.glob(f"*{output_target.stem}*"):
+                    try:
+                        if partial.is_file():
+                            partial.unlink()
+                    except Exception:
+                        pass
                 raise RuntimeError(f"Download stream error: {fb_err}")
         else:
             log_error("downloader", f"Download failed for URL: {cleaned_url}", exc=e)
+            for partial in DOWNLOADS_DIR.glob(f"*{output_target.stem}*"):
+                try:
+                    if partial.is_file():
+                        partial.unlink()
+                except Exception:
+                    pass
             raise RuntimeError(f"Download stream error: {e}")
 
     return str(output_target.resolve())

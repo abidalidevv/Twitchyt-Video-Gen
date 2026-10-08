@@ -56,6 +56,31 @@ def create_caption_bg_image(w: int, h: int, hex_color: str, opacity: float, task
         return ""
 
 
+def get_system_ram_gb() -> float:
+    """Returns physical system RAM in GB for adaptive FFmpeg buffer scaling."""
+    try:
+        import ctypes
+        class MEMORYSTATUSEX(ctypes.Structure):
+            _fields_ = [
+                ("dwLength", ctypes.c_ulong),
+                ("dwMemoryLoad", ctypes.c_ulong),
+                ("ullTotalPhys", ctypes.c_ulonglong),
+                ("ullAvailPhys", ctypes.c_ulonglong),
+                ("ullTotalPageFile", ctypes.c_ulonglong),
+                ("ullAvailPageFile", ctypes.c_ulonglong),
+                ("ullTotalVirtual", ctypes.c_ulonglong),
+                ("ullAvailVirtual", ctypes.c_ulonglong),
+                ("sullAvailExtendedVirtual", ctypes.c_ulonglong),
+            ]
+        stat = MEMORYSTATUSEX()
+        stat.dwLength = ctypes.sizeof(MEMORYSTATUSEX)
+        if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(stat)):
+            return stat.ullTotalPhys / (1024 ** 3)
+    except Exception:
+        pass
+    return 16.0
+
+
 def apply_avatar_outer_glow(avatar_path: str, glow_type: str, task_id: str) -> str:
     """Renders radiant dual-layer outer glow border onto avatar matching CSS preview drop-shadow."""
     if not glow_type or glow_type.lower() == "none" or not Path(avatar_path).exists():
@@ -239,7 +264,10 @@ def render_stream_mix(
         caption_bg_path = create_caption_bg_image(bw, bh, bg_col, bg_op, task_id=task_id, radius=14)
 
     # --- BUILD FFmpeg COMMAND ---
-    cmd = [ffmpeg_bin, "-y", "-hide_banner", "-threads", "0"]
+    # Adaptive CPU Threading: Throttle to 4 threads on <=12GB RAM to prevent memory buffer explosion
+    ram_gb = get_system_ram_gb()
+    thread_count = str(min(4, os.cpu_count() or 4)) if ram_gb < 12.0 else "0"
+    cmd = [ffmpeg_bin, "-y", "-hide_banner", "-threads", thread_count]
 
     # Input 0: Twitch Background (stream looped, muted, start-trimmed)
     if twitch_start > 0.05:
@@ -411,6 +439,11 @@ def render_stream_mix(
             "-quality", "speed",
             "-b:v", bitrate
         ])
+    elif encoder == "h264_mf":
+        cmd.extend([
+            "-c:v", "h264_mf",
+            "-b:v", bitrate
+        ])
     else:
         cpu_preset = "ultrafast" if is_30s_preview else "veryfast"
         cmd.extend([
@@ -425,6 +458,7 @@ def render_stream_mix(
         "-pix_fmt", "yuv420p",
         "-r", "60",
         "-fps_mode", "cfr",
+        "-max_muxing_queue_size", "1024",
         "-t", f"{render_duration:.2f}",
         "-progress", "pipe:1",
         str(output_path)

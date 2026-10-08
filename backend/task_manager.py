@@ -315,7 +315,12 @@ class StreamMixTaskManager:
                 elif not is_captions_enabled:
                     print(f"[TaskManager] Captions disabled by user — skipping Whisper transcription.")
 
+                if task.get("status") == "CANCELLED":
+                    return
+
                 # 4. GPU Single-Pass Compositing
+                if task.get("status") == "CANCELLED":
+                    return
                 base_pct = 30.0 if is_captions_enabled else 10.0
                 comp_weight = (100.0 - base_pct) / 100.0
                 task["stage"] = "🚀 GPU Single-Pass Compositing & Rendering..."
@@ -392,4 +397,4 @@ class StreamMixTaskManager:
         return list(self.tasks.values())
 
 
-task_manager = StreamMixTaskManager(max_concurrent=2)
+task_manager = StreamMixTaskManager(max_concurrent=1)

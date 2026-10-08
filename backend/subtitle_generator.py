@@ -329,6 +329,37 @@ def _transcribe_single_audio_file(file_path: str, max_retries: int = 3, language
     return []
 
 
+def _find_clean_silence_cut_point(audio_path: str, target_cut_sec: float, search_window_sec: float = 24.0) -> float:
+    """
+    Finds the cleanest natural silence pause near target_cut_sec so words are never cut in half.
+    """
+    window_start = max(0.0, target_cut_sec - (search_window_sec / 2.0))
+    ffmpeg_bin = find_ffmpeg()
+    cmd = [
+        ffmpeg_bin, "-y",
+        "-ss", f"{window_start:.2f}",
+        "-t", f"{search_window_sec:.2f}",
+        "-i", audio_path,
+        "-af", "silencedetect=noise=-30dB:d=0.25",
+        "-f", "null", "-"
+    ]
+    try:
+        proc = subprocess.run(
+            cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, timeout=4,
+            creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
+        )
+        matches = re.findall(r'silence_start:\s*([0-9\.]+)', proc.stderr)
+        if matches:
+            offsets = [float(m) for m in matches]
+            target_rel = search_window_sec / 2.0
+            best_rel = min(offsets, key=lambda x: abs(x - target_rel))
+            best_point = window_start + best_rel + 0.1
+            return round(best_point, 2)
+    except Exception:
+        pass
+    return target_cut_sec
+
+
 def transcribe_audio_words(
     audio_file_path: str,
     total_duration: Optional[float] = None,
@@ -337,15 +368,8 @@ def transcribe_audio_words(
     """
     Transcribes audio file using Groq Whisper with word-level timestamps.
     Automatically handles files exceeding Groq's 25MB limit or long durations (>600s)
-    by slicing into 10-minute chunks and dispatching in parallel across all available
-    Groq API keys in the pool!
-
-    Args:
-        audio_file_path: Path to extracted audio file.
-        total_duration:  Known duration in seconds (skips ffprobe re-check).
-        language:        ISO-639-1 language code hint for Whisper (e.g. 'en', 'hi', 'ur').
-                         If None, Whisper auto-detects. Providing this prevents hallucination
-                         where Whisper guesses the wrong language and transcribes garbage.
+    by slicing into natural silence-pause chunks and dispatching in parallel across
+    all available Groq API keys in the pool!
     """
     if not os.path.exists(audio_file_path):
         return []
@@ -368,7 +392,7 @@ def transcribe_audio_words(
     if file_size <= MAX_FILE_SIZE and (duration <= 0 or duration <= CHUNK_DURATION_SEC):
         return _transcribe_single_audio_file(audio_file_path, language=language)
 
-    # Otherwise: Large or Long Video! Chunk into 10-minute segments
+    # Otherwise: Large or Long Video! Chunk into natural silence-pause segments
     ffmpeg_bin = find_ffmpeg()
     estimated_duration = duration if duration > 0 else (file_size / (8 * 1024))
 
@@ -376,9 +400,17 @@ def transcribe_audio_words(
     t = 0.0
     chunk_idx = 0
     while t < estimated_duration:
-        chunk_len = min(CHUNK_DURATION_SEC, estimated_duration - t)
-        if chunk_len <= 1.0:
+        remaining = estimated_duration - t
+        if remaining <= 1.0:
             break
+
+        if remaining > CHUNK_DURATION_SEC:
+            target_cut = t + CHUNK_DURATION_SEC
+            actual_cut = _find_clean_silence_cut_point(audio_file_path, target_cut)
+            chunk_len = max(10.0, actual_cut - t)
+        else:
+            chunk_len = remaining
+
         chunk_file = str((TEMP_DIR / f"chunk_{chunk_idx}_{int(time.time()*1000)}.mp3").resolve())
         slice_cmd = [
             ffmpeg_bin, "-y", "-ss", f"{t:.2f}",
@@ -393,7 +425,7 @@ def transcribe_audio_words(
                 chunks.append((chunk_idx, t, chunk_file))
         except Exception as slice_err:
             log_error("subtitle_generator", f"Error slicing chunk {chunk_idx}: {slice_err}")
-        t += CHUNK_DURATION_SEC
+        t += chunk_len
         chunk_idx += 1
 
     if not chunks:
@@ -492,13 +524,16 @@ def group_words_into_phrases(words: List[Dict[str, Any]], max_words: int = 5) ->
 
 def sanitize_subtitle_word(word_str: str) -> str:
     """
-    Removes invisible zero-width characters and BPE tokenizer artifacts that cause dotted circle/tofu symbols.
+    Removes invisible zero-width characters, BPE tokenizer artifacts,
+    and sanitizes ASS control characters (backslash, curly braces) to prevent subtitle styling glitches.
     """
     if not word_str:
         return ""
     # Strip zero-width space (\u200b), non-joiner (\u200c), joiner (\u200d), directional markers (\u200e/\u200f),
-    # Byte Order Mark (\ufeff), replacement characters (\ufffd), and tokenizer symbols (Ġ \u0120,   \u2581)
-    cleaned = re.sub(r'[\u200b\u200c\u200d\u200e\u200f\ufeff\ufffd\u0120\u2581]', '', str(word_str))
+    # Byte Order Mark (\ufeff), replacement characters (\ufffd), and tokenizer symbols (Ġ \u0120,   \u2581, \r, \n)
+    cleaned = re.sub(r'[\u200b\u200c\u200d\u200e\u200f\ufeff\ufffd\u0120\u2581\r\n]', '', str(word_str))
+    # Sanitize backslash and curly braces to prevent LibASS style override collision
+    cleaned = cleaned.replace('\\', '/').replace('{', '(').replace('}', ')')
     return cleaned.replace('\u00a0', ' ').strip()
 
 

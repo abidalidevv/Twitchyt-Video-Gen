@@ -4,7 +4,7 @@ import json
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 # Base directory for the standalone StreamMix Studio
 BASE_DIR = Path(__file__).resolve().parent.parent

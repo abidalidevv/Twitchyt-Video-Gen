@@ -45,6 +45,7 @@ dist/
 *.md
 !README.md
 !BRAIN.md
+!BNissue.md
 
 # Python artifacts
 __pycache__/

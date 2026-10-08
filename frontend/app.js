@@ -2514,4 +2514,42 @@ window.autoTrimAvatar = async function() {
   img.src = imgEl.src;
 };
 
+// ── IN-WINDOW DOCUMENTATION MODAL ──────────────────────────────────────────
+window.openDocsModal = function() {
+  const modal = document.getElementById('modal-docs');
+  if (modal) {
+    modal.classList.remove('hidden');
+    const iframe = document.getElementById('docs-iframe');
+    if (iframe && (!iframe.src || iframe.src === 'about:blank' || !iframe.src.includes('/docs-guide'))) {
+      iframe.src = '/docs-guide';
+    }
+  }
+};
+
+window.closeDocsModal = function() {
+  const modal = document.getElementById('modal-docs');
+  if (modal) {
+    modal.classList.add('hidden');
+  }
+};
+
+window.reloadDocsIframe = function() {
+  const iframe = document.getElementById('docs-iframe');
+  if (iframe) {
+    iframe.src = '/docs-guide?t=' + Date.now();
+  }
+};
+
+// Global Escape key listener for in-window modals
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    window.closeDocsModal?.();
+    window.closeStorageModal?.();
+    const modalLogs = document.getElementById('modal-logs');
+    if (modalLogs && !modalLogs.classList.contains('hidden')) {
+      modalLogs.classList.add('hidden');
+    }
+  }
+});
+
 

@@ -439,6 +439,7 @@ async def api_clear_completed_tasks():
 @app.post("/api/tasks/open-folder")
 async def api_open_outputs_folder():
     try:
+        OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
         if os.name == "nt":
             os.startfile(str(OUTPUT_DIR.resolve()))
             return {"success": True}

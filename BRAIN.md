@@ -268,4 +268,21 @@ All API routes are accessible via `http://127.0.0.1:8899`:
 - `GET /api/storage/stats` — Return disk usage breakdown (temp, downloads, outputs).
 - `POST /api/storage/clean` — Safely purge cache and temporary chunks.
 - `GET /api/logs` — Fetch recent system error logs.
+- `GET /docs-guide` — Embedded operator manual for in-window modal.
+
+---
+
+## 15. Master 14 Optimization Engine & Portability Architecture
+
+### 15.1 Production Bottleneck Mitigation Matrix
+1. **Microsecond Lipsync Lock (`aresample=async=1000`)**: Prevents sample rounding drift in multi-hour audio streams. Audio PTS is dynamically slaved to video frames.
+2. **Packet Buffer Overflow Prevention (`-max_muxing_queue_size 1024`)**: Resolves high-load FFmpeg muxer crashes when compositing all 5 layers concurrently.
+3. **Hardware GPU Cascade**: Automatically evaluates and locks the fastest available encoder on the current machine: `h264_nvenc` ➔ `h264_qsv` ➔ `h264_amf` ➔ `h264_mf` (Windows MediaFoundation) ➔ `libx264`.
+4. **Zero-Latency In-Memory Media Probe Cache**: Keeps a thread-safe dictionary cache (`_PROBE_CACHE`) of inspected video dimensions, codecs, and durations, eliminating redundant disk process execution.
+5. **Speech Pause Boundary Snapping**: Subdivides long voiceover files into 600s chunks exclusively at natural silence pauses, guaranteeing zero word bisection.
+6. **ASS Subtitle Syntax Sanitizer**: Strips curly brackets `{}` and backslashes `\` from speech recognition outputs before LibASS parsing.
+7. **Instant Blob Memory Revocation (`URL.revokeObjectURL`)**: Frees memory immediately when video preview modals close.
+8. **100% Machine-Independent Dynamic Paths**: All directories are derived at runtime via `Path(__file__).resolve().parent.parent / "data"`. Stale hardcoded paths in `settings.json` from other machines automatically fall back to local relative paths.
+9. **GPU Concurrency Gatekeeper (`max_concurrent=1`)**: Guards against NVENC session exhaustion and out-of-memory crashes on entry-level GPUs.
+10. **In-Window Documentation Modal**: Renders the complete documentation inside an embedded modal dialog in the desktop app window, eliminating extraneous browser tabs.
 

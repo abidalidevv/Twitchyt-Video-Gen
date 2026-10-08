@@ -12,20 +12,26 @@ echo.
 cd /d "%~dp0"
 
 echo [1/4] Checking Python environment...
+set PYTHON_CMD=python
 python --version >nul 2>&1
 if %errorlevel% neq 0 (
-    color 0c
-    echo [ERROR] Python is not installed or not in system PATH!
-    echo Please install Python 3.10+ from python.org and try again.
-    pause
-    exit /b 1
+    py --version >nul 2>&1
+    if %errorlevel% equ 0 (
+        set PYTHON_CMD=py
+    ) else (
+        color 0c
+        echo [ERROR] Python is not installed or not in system PATH!
+        echo Please install Python 3.10+ from python.org and try again.
+        pause
+        exit /b 1
+    )
 )
 
 echo [2/4] Verifying PyInstaller dependency...
-python -c "import PyInstaller" >nul 2>&1
+%PYTHON_CMD% -c "import PyInstaller" >nul 2>&1
 if %errorlevel% neq 0 (
     echo [*] PyInstaller not detected. Installing PyInstaller via pip...
-    pip install pyinstaller
+    %PYTHON_CMD% -m pip install pyinstaller
     if %errorlevel% neq 0 (
         color 0c
         echo [ERROR] Failed to install PyInstaller.
@@ -35,10 +41,10 @@ if %errorlevel% neq 0 (
 )
 
 echo [3/4] Building Standalone StreamMix Studio Executable...
-echo [*] Bundling backend engine, frontend UI, and hardware binaries...
+echo [*] Bundling backend engine, frontend UI, fonts, and hardware binaries...
 echo.
 
-pyinstaller --noconfirm --onedir --windowed ^
+%PYTHON_CMD% -m PyInstaller --noconfirm --onedir --windowed ^
     --name "StreamMixStudio" ^
     --add-data "backend;backend" ^
     --add-data "frontend;frontend" ^
@@ -55,6 +61,7 @@ pyinstaller --noconfirm --onedir --windowed ^
     --hidden-import "backend" ^
     --hidden-import "backend.server" ^
     --hidden-import "backend.config" ^
+    --hidden-import "backend.audio_engine" ^
     --hidden-import "backend.downloader" ^
     --hidden-import "backend.task_manager" ^
     --hidden-import "backend.turbo_renderer" ^
@@ -78,11 +85,15 @@ if not exist "dist\StreamMixStudio\data\outputs" mkdir "dist\StreamMixStudio\dat
 if not exist "dist\StreamMixStudio\data\downloads" mkdir "dist\StreamMixStudio\data\downloads"
 if not exist "dist\StreamMixStudio\data\avatars" mkdir "dist\StreamMixStudio\data\avatars"
 if not exist "dist\StreamMixStudio\data\bgm" mkdir "dist\StreamMixStudio\data\bgm"
+if not exist "dist\StreamMixStudio\data\fonts" mkdir "dist\StreamMixStudio\data\fonts"
 if not exist "dist\StreamMixStudio\data\temp" mkdir "dist\StreamMixStudio\data\temp"
 if not exist "dist\StreamMixStudio\data\logs" mkdir "dist\StreamMixStudio\data\logs"
 
 if exist "data\avatars\default_avatar.png" (
     copy "data\avatars\default_avatar.png" "dist\StreamMixStudio\data\avatars\default_avatar.png" >nul 2>&1
+)
+if exist "data\fonts" (
+    xcopy /E /I /Y "data\fonts" "dist\StreamMixStudio\data\fonts" >nul 2>&1
 )
 
 color 0a

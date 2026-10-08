@@ -12,18 +12,24 @@ echo.
 cd /d "%~dp0"
 
 echo [1/3] Verifying Python and dependencies...
+set PYTHON_CMD=python
 python --version >nul 2>&1
 if %errorlevel% neq 0 (
-    color 0c
-    echo [ERROR] Python is not installed or not in PATH!
-    pause
-    exit /b 1
+    py --version >nul 2>&1
+    if %errorlevel% equ 0 (
+        set PYTHON_CMD=py
+    ) else (
+        color 0c
+        echo [ERROR] Python is not installed or not in system PATH!
+        pause
+        exit /b 1
+    )
 )
 
-python -c "import PyInstaller, webview" >nul 2>&1
+%PYTHON_CMD% -c "import PyInstaller, webview" >nul 2>&1
 if %errorlevel% neq 0 (
     echo [*] Installing required packaging packages (pyinstaller, pywebview)...
-    pip install pyinstaller pywebview
+    %PYTHON_CMD% -m pip install pyinstaller pywebview
 )
 
 echo.
@@ -38,7 +44,7 @@ if not exist "dist\StreamMixStudio\StreamMixStudio.exe" (
 
 echo.
 echo [3/3] Generating Windows Setup Installer (Setup.exe)...
-python tools\create_installer.py
+%PYTHON_CMD% tools\create_installer.py
 
 if %errorlevel% neq 0 (
     color 0c

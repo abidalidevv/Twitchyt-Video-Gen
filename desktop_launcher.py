@@ -13,6 +13,28 @@ import urllib.request
 import webbrowser
 import multiprocessing
 
+import io
+
+# In a Windows GUI app (PyInstaller --windowed), sys.stdout and sys.stderr are None.
+# Uvicorn formatters call sys.stdout.isatty() which crashes with AttributeError.
+# SafeStream guarantees valid stdout/stderr streams with isatty() returning False.
+class SafeStream(io.TextIOBase):
+    def write(self, s):
+        return len(s) if s else 0
+    def flush(self):
+        pass
+    def isatty(self):
+        return False
+    def fileno(self):
+        raise io.UnsupportedOperation("No fileno in windowed GUI mode")
+
+if sys.stdout is None:
+    sys.stdout = SafeStream()
+if sys.stderr is None:
+    sys.stderr = SafeStream()
+if sys.stdin is None:
+    sys.stdin = io.StringIO()
+
 # Suppress benign Windows asyncio ConnectionResetError [WinError 10054]
 if sys.platform == "win32":
     import asyncio
@@ -90,7 +112,8 @@ def run_server(port: int):
     try:
         import uvicorn
         from backend.server import app
-        uvicorn.run(app, host=HOST, port=port, log_level="warning")
+        # log_config=None prevents uvicorn from using default formatters that call sys.stdout.isatty()
+        uvicorn.run(app, host=HOST, port=port, log_level="warning", log_config=None, access_log=False)
     except Exception as e:
         import traceback
         tb = traceback.format_exc()

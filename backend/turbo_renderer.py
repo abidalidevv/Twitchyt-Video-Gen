@@ -1,5 +1,6 @@
 import os
 import sys
+import re
 import time
 import subprocess
 import threading
@@ -200,10 +201,32 @@ def render_stream_mix(
     else:
         render_duration = master_duration
 
-    # Output file
+    # Output file: Matches YouTube video title as requested
     task_id = str(params.get("task_id", int(time.time())))[:8]
-    output_filename = f"StreamMix_{task_id}.mp4" if not is_30s_preview else f"QuickTest_{task_id}.mp4"
+    raw_yt_name = (
+        params.get("youtube_title")
+        or params.get("yt_title")
+        or yt_info.get("title")
+        or Path(youtube_path).stem
+    )
+    # Sanitize invalid Windows filename characters: \ / : * ? " < > |
+    clean_yt_name = re.sub(r'[\\/*?:"<>|\x00-\x1f]', "", str(raw_yt_name)).strip().rstrip('. ')
+    if not clean_yt_name or clean_yt_name.lower() in ("stream", "online stream", "local", "youtube", "youtube_main"):
+        clean_yt_name = f"StreamMix_{task_id}"
+
+    # Normalize multiple spaces and limit length to 120 characters to avoid MAX_PATH issues
+    clean_yt_name = re.sub(r'\s+', " ", clean_yt_name).strip()[:120].strip()
+
+    if is_30s_preview:
+        output_filename = f"{clean_yt_name}_Preview_{task_id}.mp4"
+    else:
+        output_filename = f"{clean_yt_name}.mp4"
+
     output_path = OUTPUT_DIR / output_filename
+    # If the output file already exists, append task_id to avoid accidental clobbering
+    if output_path.exists() and not is_30s_preview:
+        output_filename = f"{clean_yt_name}_{task_id}.mp4"
+        output_path = OUTPUT_DIR / output_filename
 
     # Encoder & Hardware Tuning
     pref_enc = settings.get("hardware_encoder", "auto")

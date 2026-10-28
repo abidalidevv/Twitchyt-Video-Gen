@@ -13,29 +13,37 @@ cd /d "%~dp0"
 
 echo [1/3] Verifying Python and dependencies...
 set PYTHON_CMD=python
-python --version >nul 2>&1
-if %errorlevel% neq 0 (
-    py --version >nul 2>&1
-    if %errorlevel% equ 0 (
-        set PYTHON_CMD=py
+if exist "%~dp0.venv\Scripts\python.exe" (
+    set PYTHON_CMD="%~dp0.venv\Scripts\python.exe"
+) else (
+    if exist "%~dp0venv\Scripts\python.exe" (
+        set PYTHON_CMD="%~dp0venv\Scripts\python.exe"
     ) else (
-        color 0c
-        echo [ERROR] Python is not installed or not in system PATH!
-        pause
-        exit /b 1
+        python --version >nul 2>&1
+        if %errorlevel% neq 0 (
+            py --version >nul 2>&1
+            if %errorlevel% equ 0 (
+                set PYTHON_CMD=py
+            ) else (
+                color 0c
+                echo [ERROR] Python is not installed or not in system PATH!
+                pause
+                exit /b 1
+            )
+        )
     )
 )
 
 %PYTHON_CMD% -c "import PyInstaller, webview" >nul 2>&1
 if %errorlevel% neq 0 (
-    echo [*] Installing required packaging packages (pyinstaller, pywebview)...
+    echo [*] Installing required packaging packages: pyinstaller, pywebview...
     %PYTHON_CMD% -m pip install pyinstaller pywebview
 )
 
 echo.
-echo [2/3] Building Compiled Application Binary (Native WebView2)...
+echo [2/3] Building Compiled Application Binary: Native WebView2...
 if not exist "dist\StreamMixStudio\StreamMixStudio.exe" (
-    echo [*] Compiling binary for the first time (may take 1-2 minutes)...
+    echo [*] Compiling binary for the first time - may take 1-2 minutes...
     call BUILD_EXE.bat
 ) else (
     echo [*] Existing compiled binary found in dist\StreamMixStudio.

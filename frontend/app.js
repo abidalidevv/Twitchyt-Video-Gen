@@ -13,6 +13,7 @@ const STATE = {
   },
   twitchLocalPath: '',
   ytLocalPath: '',
+  ytTitle: '',
   ytDuration: 0,
   twitchDuration: 0,
 
@@ -1151,6 +1152,7 @@ function initSourcePickers() {
       const data = await res.json();
       if (res.ok) {
         STATE.ytDuration = data.duration || 0;
+        STATE.ytTitle = data.title || '';
         const badge = document.getElementById('yt-info-badge');
         if (badge) {
           badge.textContent = `YouTube Reaction: ${formatDuration(data.duration)} (${data.title || 'Stream'})`;
@@ -1186,6 +1188,7 @@ function initSourcePickers() {
       if (res.ok) {
         STATE.ytLocalPath = data.path;
         STATE.ytDuration = data.duration || 0;
+        STATE.ytTitle = file.name.replace(/\.[^/.]+$/, "");
         if (label) label.textContent = `✓ ${file.name} (${formatDuration(data.duration)})`;
         updateDurationSyncUI(data.duration);
         showToast('Local YouTube video ready!', 'success');
@@ -1406,7 +1409,8 @@ function collectPayload(isPreview = false) {
   let ytEndSec = STATE.ytDuration > 0 ? STATE.ytDuration : null;
 
   return {
-    title: "StreamMix 1080p Video",
+    title: STATE.ytTitle || "StreamMix 1080p Video",
+    youtube_title: STATE.ytTitle || "",
     twitch_bg_path: twitchPath,
     youtube_main_path: ytPath,
     twitch_start_sec: parseTimeToSeconds(document.getElementById('twitch-start-time')?.value),

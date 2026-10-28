@@ -106,19 +106,22 @@ async def docs_guide():
 
 @app.get("/api/health")
 async def api_health():
-    settings = load_settings()
-    detected_gpu = detect_hardware_encoder()
-    all_tasks = task_manager.get_all_tasks()
-    active_count = len([t for t in all_tasks if t["status"] in ("ACTIVE", "QUEUED")])
-    return {
-        "status": "online",
-        "ffmpeg": find_ffmpeg(),
-        "ffprobe": find_ffprobe(),
-        "detected_encoder": detected_gpu,
-        "configured_encoder": settings.get("hardware_encoder", "auto"),
-        "active_tasks": active_count,
-        "total_outputs": len(list(OUTPUT_DIR.glob("*.mp4")))
-    }
+    try:
+        settings = load_settings()
+        detected_gpu = detect_hardware_encoder()
+        all_tasks = task_manager.get_all_tasks()
+        active_count = len([t for t in all_tasks if t["status"] in ("ACTIVE", "QUEUED")])
+        return {
+            "status": "online",
+            "ffmpeg": find_ffmpeg(),
+            "ffprobe": find_ffprobe(),
+            "detected_encoder": detected_gpu,
+            "configured_encoder": settings.get("hardware_encoder", "auto"),
+            "active_tasks": active_count,
+            "total_outputs": len(list(OUTPUT_DIR.glob("*.mp4")))
+        }
+    except Exception as e:
+        return {"status": "online", "warning": str(e)}
 
 
 # --- SETTINGS & HARDWARE ---
@@ -334,6 +337,7 @@ async def api_generate_metadata(req: MetadataRequest):
 # --- RENDERING & TASKS ---
 class RenderTaskRequest(BaseModel):
     title: Optional[str] = "StreamMix Project"
+    youtube_title: Optional[str] = None
     twitch_bg_path: str
     youtube_main_path: str
     twitch_start_sec: Optional[float] = 0.0

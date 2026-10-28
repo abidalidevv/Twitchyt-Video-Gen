@@ -148,12 +148,26 @@ class StreamMixTaskManager:
                                 res_path = yt_val
                         else:
                             res_path = yt_val
+                        if not params.get("youtube_title"):
+                            params["youtube_title"] = Path(res_path).stem
                         if "downloads" in task:
                             task["downloads"]["youtube"] = {"pct": 100.0, "speed": "", "is_local": True, "status": "✓ Local File (Ready)"}
                         return res_path
 
                     if "downloads" in task:
                         task["downloads"]["youtube"] = {"pct": 0.0, "speed": "", "is_local": False, "status": "Connecting..."}
+
+                    # Fetch real YouTube title if not already provided
+                    if not params.get("youtube_title"):
+                        try:
+                            from .downloader import fetch_url_info
+                            info = await asyncio.to_thread(fetch_url_info, yt_val)
+                            if info.get("title") and info["title"] != "Online Stream":
+                                params["youtube_title"] = info["title"]
+                                if task.get("title") in ("StreamMix 1080p Video", "StreamMix Project"):
+                                    task["title"] = info["title"]
+                        except Exception:
+                            pass
 
                     def dl_yt_prog(pct, speed):
                         prog_state["yt_pct"] = round(pct, 1)

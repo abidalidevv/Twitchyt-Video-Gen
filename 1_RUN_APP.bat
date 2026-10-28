@@ -13,17 +13,25 @@ cd /d "%~dp0"
 
 echo [1/3] Verifying Python Environment...
 set PYTHON_CMD=python
-python --version >nul 2>&1
-if %errorlevel% neq 0 (
-    py --version >nul 2>&1
-    if %errorlevel% equ 0 (
-        set PYTHON_CMD=py
+if exist "%~dp0.venv\Scripts\python.exe" (
+    set PYTHON_CMD="%~dp0.venv\Scripts\python.exe"
+) else (
+    if exist "%~dp0venv\Scripts\python.exe" (
+        set PYTHON_CMD="%~dp0venv\Scripts\python.exe"
     ) else (
-        color 0c
-        echo [ERROR] Python is not installed or not in system PATH!
-        echo Please install Python 3.10+ from https://www.python.org/downloads/
-        pause
-        exit /b 1
+        python --version >nul 2>&1
+        if %errorlevel% neq 0 (
+            py --version >nul 2>&1
+            if %errorlevel% equ 0 (
+                set PYTHON_CMD=py
+            ) else (
+                color 0c
+                echo [ERROR] Python is not installed or not in system PATH!
+                echo Please install Python 3.10+ from https://www.python.org/downloads/
+                pause
+                exit /b 1
+            )
+        )
     )
 )
 

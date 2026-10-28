@@ -13,17 +13,25 @@ cd /d "%~dp0"
 
 echo [1/4] Checking Python environment...
 set PYTHON_CMD=python
-python --version >nul 2>&1
-if %errorlevel% neq 0 (
-    py --version >nul 2>&1
-    if %errorlevel% equ 0 (
-        set PYTHON_CMD=py
+if exist "%~dp0.venv\Scripts\python.exe" (
+    set PYTHON_CMD="%~dp0.venv\Scripts\python.exe"
+) else (
+    if exist "%~dp0venv\Scripts\python.exe" (
+        set PYTHON_CMD="%~dp0venv\Scripts\python.exe"
     ) else (
-        color 0c
-        echo [ERROR] Python is not installed or not in system PATH!
-        echo Please install Python 3.10+ from python.org and try again.
-        pause
-        exit /b 1
+        python --version >nul 2>&1
+        if %errorlevel% neq 0 (
+            py --version >nul 2>&1
+            if %errorlevel% equ 0 (
+                set PYTHON_CMD=py
+            ) else (
+                color 0c
+                echo [ERROR] Python is not installed or not in system PATH!
+                echo Please install Python 3.10+ from python.org and try again.
+                pause
+                exit /b 1
+            )
+        )
     )
 )
 
@@ -49,6 +57,9 @@ echo.
     --add-data "backend;backend" ^
     --add-data "frontend;frontend" ^
     --add-data "bin;bin" ^
+    --add-data "data\fonts;data\fonts" ^
+    --add-data "data\avatars;data\avatars" ^
+    --add-data "data\bgm;data\bgm" ^
     --collect-all "uvicorn" ^
     --collect-all "fastapi" ^
     --collect-all "yt_dlp" ^
@@ -68,6 +79,8 @@ echo.
     --hidden-import "backend.subtitle_generator" ^
     --hidden-import "backend.groq_metadata" ^
     --hidden-import "backend.api_pool" ^
+    --hidden-import "asyncio" ^
+    --hidden-import "multiprocessing" ^
     desktop_launcher.py
 
 if %errorlevel% neq 0 (
@@ -89,11 +102,14 @@ if not exist "dist\StreamMixStudio\data\fonts" mkdir "dist\StreamMixStudio\data\
 if not exist "dist\StreamMixStudio\data\temp" mkdir "dist\StreamMixStudio\data\temp"
 if not exist "dist\StreamMixStudio\data\logs" mkdir "dist\StreamMixStudio\data\logs"
 
-if exist "data\avatars\default_avatar.png" (
-    copy "data\avatars\default_avatar.png" "dist\StreamMixStudio\data\avatars\default_avatar.png" >nul 2>&1
+if exist "data\avatars" (
+    xcopy /E /I /Y "data\avatars" "dist\StreamMixStudio\data\avatars" >nul 2>&1
 )
 if exist "data\fonts" (
     xcopy /E /I /Y "data\fonts" "dist\StreamMixStudio\data\fonts" >nul 2>&1
+)
+if exist "data\bgm" (
+    xcopy /E /I /Y "data\bgm" "dist\StreamMixStudio\data\bgm" >nul 2>&1
 )
 
 color 0a

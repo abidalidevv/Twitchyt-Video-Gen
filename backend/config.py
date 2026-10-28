@@ -6,10 +6,58 @@ import subprocess
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 
-# Base directory for the standalone StreamMix Studio
-BASE_DIR = Path(__file__).resolve().parent.parent
-DATA_DIR = BASE_DIR / "data"
-BIN_DIR = BASE_DIR / "bin"
+import threading
+
+# Frozen / Standalone Execution Path Resolution
+IS_FROZEN = getattr(sys, "frozen", False)
+if IS_FROZEN:
+    EXE_DIR = Path(sys.executable).resolve().parent
+    BUNDLE_DIR = Path(getattr(sys, "_MEIPASS", EXE_DIR / "_internal"))
+else:
+    EXE_DIR = Path(__file__).resolve().parent.parent
+    BUNDLE_DIR = EXE_DIR
+
+BASE_DIR = EXE_DIR
+
+# Robust Frontend & Binary Directory Resolution
+if (BUNDLE_DIR / "frontend").exists():
+    FRONTEND_DIR = BUNDLE_DIR / "frontend"
+elif (EXE_DIR / "frontend").exists():
+    FRONTEND_DIR = EXE_DIR / "frontend"
+else:
+    FRONTEND_DIR = BASE_DIR / "frontend"
+
+if (BUNDLE_DIR / "bin").exists():
+    BIN_DIR = BUNDLE_DIR / "bin"
+elif (EXE_DIR / "bin").exists():
+    BIN_DIR = EXE_DIR / "bin"
+else:
+    BIN_DIR = BASE_DIR / "bin"
+
+
+def _resolve_data_dir() -> Path:
+    """
+    Selects a writable data directory:
+    1. Portable: EXE_DIR / 'data' (if writable)
+    2. Fallback: %LOCALAPPDATA%/StreamMixStudio/data (if EXE_DIR is read-only or in Program Files)
+    """
+    target = EXE_DIR / "data"
+    try:
+        target.mkdir(parents=True, exist_ok=True)
+        test_file = target / ".write_probe"
+        test_file.write_text("ok", encoding="utf-8")
+        test_file.unlink(missing_ok=True)
+        return target
+    except Exception:
+        pass
+
+    local_app_data = os.environ.get("LOCALAPPDATA") or os.path.expanduser("~")
+    user_data = Path(local_app_data) / "StreamMixStudio" / "data"
+    user_data.mkdir(parents=True, exist_ok=True)
+    return user_data
+
+
+DATA_DIR = _resolve_data_dir()
 OUTPUT_DIR = DATA_DIR / "outputs"
 TEMP_DIR = DATA_DIR / "temp"
 DOWNLOADS_DIR = DATA_DIR / "downloads"
@@ -20,19 +68,36 @@ SETTINGS_FILE = DATA_DIR / "settings.json"
 API_KEYS_FILE = DATA_DIR / "api_keys.json"
 LOGS_DIR = DATA_DIR / "logs"
 ERROR_LOG_FILE = LOGS_DIR / "error.log"
-FRONTEND_DIR = BASE_DIR / "frontend"
 
-for directory in [DATA_DIR, BIN_DIR, OUTPUT_DIR, TEMP_DIR, DOWNLOADS_DIR, AVATARS_DIR, BGM_DIR, FONTS_DIR, LOGS_DIR, FRONTEND_DIR]:
-    directory.mkdir(parents=True, exist_ok=True)
+for directory in [DATA_DIR, OUTPUT_DIR, TEMP_DIR, DOWNLOADS_DIR, AVATARS_DIR, BGM_DIR, FONTS_DIR, LOGS_DIR]:
+    try:
+        directory.mkdir(parents=True, exist_ok=True)
+    except Exception:
+        pass
 
-# Prepend portable bin/ directory to system PATH so yt-dlp, FFmpegFD and subprocesses find ffmpeg & ffprobe
+# Seed default bundled assets (avatars, fonts, etc.) if missing in DATA_DIR
+for seed_src in [BUNDLE_DIR / "data", EXE_DIR / "data"]:
+    if seed_src.exists() and seed_src != DATA_DIR:
+        for sub in ["fonts", "avatars", "bgm"]:
+            src_sub = seed_src / sub
+            dst_sub = DATA_DIR / sub
+            if src_sub.exists() and src_sub.is_dir():
+                dst_sub.mkdir(parents=True, exist_ok=True)
+                for f in src_sub.glob("*"):
+                    if f.is_file() and not (dst_sub / f.name).exists():
+                        try:
+                            shutil.copy2(f, dst_sub / f.name)
+                        except Exception:
+                            pass
+
+# Prepend portable bin/ directory to system PATH so yt-dlp and FFmpeg are detected
 bin_str = str(BIN_DIR.resolve())
 if bin_str not in os.environ.get("PATH", ""):
     os.environ["PATH"] = bin_str + os.pathsep + os.environ.get("PATH", "")
 
 
 def ensure_bundled_fonts():
-    """Ensures required viral fonts (Poppins Black, Outfit ExtraBold, Montserrat Black, etc.) are present in data/fonts."""
+    """Ensures required viral fonts (Poppins Black, Outfit ExtraBold, Montserrat Black, etc.) are present in data/fonts without blocking startup."""
     font_urls = {
         "Poppins.ttf": "https://fonts.gstatic.com/s/poppins/v24/pxiByp8kv8JHgFVrLBT5V1s.ttf",
         "Outfit.ttf": "https://fonts.gstatic.com/s/outfit/v15/QGYyz_MVcBeNP4NjuGObqx1XmO1I4bCyC4E.ttf",
@@ -40,16 +105,33 @@ def ensure_bundled_fonts():
         "Montserrat-Bold.ttf": "https://fonts.gstatic.com/s/montserrat/v31/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCvC70w-.ttf",
         "Montserrat-Black.ttf": "https://fonts.gstatic.com/s/montserrat/v31/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCvC70w-.ttf"
     }
-    import urllib.request
-    for fname, url in font_urls.items():
-        dest = FONTS_DIR / fname
-        if not dest.exists() or dest.stat().st_size < 10000:
-            try:
-                req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-                with urllib.request.urlopen(req, timeout=5) as resp, open(dest, "wb") as f:
-                    f.write(resp.read())
-            except Exception:
-                pass
+
+    # First check if fonts exist in BUNDLE_DIR or EXE_DIR and copy them
+    for seed_dir in [BUNDLE_DIR / "data" / "fonts", EXE_DIR / "data" / "fonts"]:
+        if seed_dir.exists():
+            for fname in font_urls:
+                src_font = seed_dir / fname
+                dst_font = FONTS_DIR / fname
+                if src_font.exists() and not dst_font.exists():
+                    try:
+                        shutil.copy2(src_font, dst_font)
+                    except Exception:
+                        pass
+
+    def _bg_download():
+        import urllib.request
+        for fname, url in font_urls.items():
+            dest = FONTS_DIR / fname
+            if not dest.exists() or dest.stat().st_size < 10000:
+                try:
+                    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+                    with urllib.request.urlopen(req, timeout=5) as resp, open(dest, "wb") as f:
+                        f.write(resp.read())
+                except Exception:
+                    pass
+
+    # Launch font verification in non-blocking background thread so startup is instant (0ms)
+    threading.Thread(target=_bg_download, daemon=True).start()
 
 ensure_bundled_fonts()
 
@@ -155,11 +237,17 @@ def find_ffprobe() -> str:
     return system_path or "ffprobe"
 
 
+_CACHED_HARDWARE_ENCODER = None
+
 def detect_hardware_encoder() -> str:
     """
     Tests FFmpeg against available hardware encoders (NVENC, QSV, AMF, CPU)
-    and returns the best supported encoder string.
+    and returns the best supported encoder string. Caches result for instant 0ms retrieval.
     """
+    global _CACHED_HARDWARE_ENCODER
+    if _CACHED_HARDWARE_ENCODER is not None:
+        return _CACHED_HARDWARE_ENCODER
+
     ffmpeg_bin = find_ffmpeg()
     encoders_to_test = [
         ("h264_nvenc", "Nvidia NVENC"),
@@ -181,15 +269,17 @@ def detect_hardware_encoder() -> str:
                 test_cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                timeout=5,
+                timeout=3,
                 creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
             )
             if res.returncode == 0:
+                _CACHED_HARDWARE_ENCODER = enc
                 return enc
         except Exception:
             continue
 
-    return "libx264"
+    _CACHED_HARDWARE_ENCODER = "libx264"
+    return _CACHED_HARDWARE_ENCODER
 
 
 def load_settings() -> dict:

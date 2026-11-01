@@ -41,11 +41,12 @@ build/
 dist/
 *.spec
 
-# Markdown documentation files (Keep README.md and BRAIN.md)
+# Markdown documentation files (Keep core documentation files)
 *.md
 !README.md
 !BRAIN.md
 !BNissue.md
+!brainmemory.md
 
 # Python artifacts
 __pycache__/

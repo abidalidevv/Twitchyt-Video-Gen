@@ -15,11 +15,24 @@ class StreamMixTaskManager:
     Dual-Worker Concurrent Task Queue Engine.
     Handles up to 2 concurrent 1080p GPU rendering tasks simultaneously.
     """
-    def __init__(self, max_concurrent: int = 2):
+    def __init__(self, max_concurrent: int = 1):
         self.max_concurrent = max_concurrent
         self._semaphore: Optional[asyncio.Semaphore] = None
         self.tasks: Dict[str, Dict[str, Any]] = {}
         self.active_processes: Dict[str, Any] = {}
+
+        # Auto-clean stale temporary files older than 6 hours on engine startup
+        try:
+            from .config import TEMP_DIR
+            now = time.time()
+            for tmp in TEMP_DIR.glob("*"):
+                try:
+                    if tmp.is_file() and (now - tmp.stat().st_mtime > 21600):
+                        tmp.unlink(missing_ok=True)
+                except Exception:
+                    pass
+        except Exception:
+            pass
 
     def _get_semaphore(self) -> asyncio.Semaphore:
         if self._semaphore is None:
@@ -300,10 +313,18 @@ class StreamMixTaskManager:
                             "-vn", "-ac", "1", "-ar", "16000", "-b:a", "64k",
                             temp_audio
                         ])
-                        await asyncio.to_thread(
-                            subprocess.run, extract_cmd,
-                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-                        )
+                        def _extract_audio():
+                            p = subprocess.Popen(
+                                extract_cmd,
+                                stdout=subprocess.DEVNULL,
+                                stderr=subprocess.DEVNULL,
+                                creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
+                            )
+                            self.active_processes[task_id] = p
+                            p.wait()
+                            self.active_processes.pop(task_id, None)
+
+                        await asyncio.to_thread(_extract_audio)
                         if os.path.exists(temp_audio):
                             task["stage"] = "🤖 Groq Whisper: Generating Word-Level AI Subtitles..."
                             task["progress"] = 22.0
@@ -378,6 +399,18 @@ class StreamMixTaskManager:
                 task["status"] = "FAILED"
                 task["error"] = str(e)
                 task["stage"] = f"Error: {str(e)[:70]}"
+            finally:
+                # Purge task-specific temp files (audio chunks, speech mp3, cap bg, avatar glow)
+                try:
+                    from .config import TEMP_DIR
+                    for tmp in TEMP_DIR.glob(f"*{task_id}*"):
+                        try:
+                            if tmp.is_file():
+                                tmp.unlink(missing_ok=True)
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
 
     def cancel_task(self, task_id: str) -> bool:
         task = self.tasks.get(task_id)
@@ -391,6 +424,24 @@ class StreamMixTaskManager:
                 except Exception:
                     pass
                 self.active_processes.pop(task_id, None)
+
+            # Purge task-specific temp files and delete partial incomplete output
+            try:
+                from .config import TEMP_DIR, OUTPUT_DIR
+                for tmp in TEMP_DIR.glob(f"*{task_id}*"):
+                    try:
+                        if tmp.is_file():
+                            tmp.unlink(missing_ok=True)
+                    except Exception:
+                        pass
+                for part in OUTPUT_DIR.glob(f"*{task_id}*"):
+                    try:
+                        if part.is_file():
+                            part.unlink(missing_ok=True)
+                    except Exception:
+                        pass
+            except Exception:
+                pass
             return True
         return False
 

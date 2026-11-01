@@ -111,6 +111,9 @@ if exist "data\fonts" (
 if exist "data\bgm" (
     xcopy /E /I /Y "data\bgm" "dist\StreamMixStudio\data\bgm" >nul 2>&1
 )
+if exist "START_STREAMMIX.bat" (
+    copy /Y "START_STREAMMIX.bat" "dist\StreamMixStudio\START_STREAMMIX.bat" >nul 2>&1
+)
 
 color 0a
 echo.

@@ -420,7 +420,13 @@ def transcribe_audio_words(
             chunk_file
         ]
         try:
-            subprocess.run(slice_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+            subprocess.run(
+                slice_cmd,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=True,
+                creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
+            )
             if os.path.exists(chunk_file) and os.path.getsize(chunk_file) > 1000:
                 chunks.append((chunk_idx, t, chunk_file))
         except Exception as slice_err:

@@ -197,35 +197,36 @@ async def api_get_keys_status():
             "message": "No Groq API keys found. Please add an API key in the API Keys Pool tab."
         }
 
-    tested_keys = []
-    healthy_count = 0
-    invalid_count = 0
-
-    for k in keys:
+    async def verify_key(k: dict) -> dict:
         api_key = k.get("key", "").strip()
         if not api_key:
             k["status"] = "INVALID"
             k["last_error"] = "Empty key string"
-            invalid_count += 1
+            k["latency_ms"] = 0
+            valid = False
         else:
             valid, latency, msg = await asyncio.to_thread(groq_pool.test_key, api_key)
             k["status"] = "HEALTHY" if valid else "INVALID"
             k["latency_ms"] = latency if valid else 0
             k["last_error"] = None if valid else msg
-            if valid:
-                healthy_count += 1
-            else:
-                invalid_count += 1
 
         masked = api_key[:6] + "..." + api_key[-4:] if len(api_key) > 12 else "gsk_***"
-        tested_keys.append({
-            "id": k.get("id"),
-            "label": k.get("label"),
-            "masked_key": masked,
-            "status": k.get("status"),
-            "latency_ms": k.get("latency_ms", 0),
-            "error": k.get("last_error")
-        })
+        return {
+            "valid": valid,
+            "data": {
+                "id": k.get("id"),
+                "label": k.get("label"),
+                "masked_key": masked,
+                "status": k.get("status"),
+                "latency_ms": k.get("latency_ms", 0),
+                "error": k.get("last_error")
+            }
+        }
+
+    results = await asyncio.gather(*[verify_key(k) for k in keys])
+    healthy_count = sum(1 for r in results if r["valid"])
+    invalid_count = len(results) - healthy_count
+    tested_keys = [r["data"] for r in results]
 
     groq_pool.save_keys()
 

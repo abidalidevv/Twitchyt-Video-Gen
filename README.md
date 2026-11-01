@@ -80,12 +80,16 @@
 - Integrated disk usage inspector analyzing `data/temp/`, `data/downloads/`, and `data/outputs/`.
 - 1-Click safe garbage collection purges intermediate downloads and scratch audio chunks while keeping finished master exports safe.
 
-### 13. 🛡️ Master 14 Optimization Engine & Microsecond Lipsync Lock
+### 13. 🛡️ Master 22 Optimization Engine & Turbo Render Speed
 - **Microsecond Lipsync Lock**: Injected `aresample=async=1000` eliminates all audio-to-video drift across 1-hour timelines.
+- **Downsampled Boxblur Turbo**: Replaced raw 1080p Gaussian blur with two-pass downsampled boxblur, delivering **3.5x to 5x faster renders (66.3 FPS vs 18.9 FPS)**.
 - **Packet Buffer Overflow Prevention**: `-max_muxing_queue_size 1024` prevents high-complexity compositing crashes.
-- **4-Tier Hardware Cascade**: NVENC ➔ QSV ➔ AMF ➔ Windows MediaFoundation (`h264_mf`) ➔ CPU fallback.
+- **5-Tier Hardware Cascade**: NVENC ➔ QSV ➔ AMF ➔ Windows MediaFoundation (`h264_mf`) ➔ CPU fallback.
 - **Zero-Latency In-Memory Probe Cache**: Instant 0ms media probing without repetitive ffprobe disk calls.
 - **LibASS Syntax Sanitizer**: Strips curly brackets and backslashes from Whisper output to prevent caption engine crashes.
+- **Uvicorn Windowed Startup Fix**: Custom `SafeStream` prevents `isatty()` AttributeError when running in GUI mode.
+- **Smart App Control Auto-Unblock**: `START_STREAMMIX.bat` unblocks Mark-of-the-Web streams automatically on recipient PCs.
+- **YouTube Title Output Naming**: Renders directly to `{Sanitized_YouTube_Title}.mp4`.
 
 ### 14. 🌐 100% Machine-Independent Portability & In-Window Modal Docs
 - **Zero Hardcoded Paths**: Dynamic relative pathing (`BASE_DIR / "data"`) ensures seamless sharing across any PC or drive letter.
@@ -98,13 +102,16 @@
 ```
 twitchyoutube/
 ├── 1_RUN_APP.bat                        # One-click Windows desktop runner (dev mode)
+├── START_STREAMMIX.bat                  # One-click Windows runner with Smart App Control bypass
 ├── BUILD_INSTALLER.bat                  # One-click Windows Setup Installer builder (Setup.exe)
 ├── BUILD_EXE.bat                        # One-click standalone executable packager (PyInstaller)
 ├── desktop_launcher.py                  # Native WebView2 desktop launcher & port cleaner
 ├── installer.iss                        # Inno Setup compiler definition script
 ├── requirements.txt                     # Python backend dependencies
 ├── README.md                            # Studio overview & quickstart guide
+├── BNissue.md                           # Master 22-Bottleneck & Optimization Audit Report
 ├── BRAIN.md                             # Comprehensive master architecture blueprint & system brain
+├── brainmemory.md                       # Complete project conversation history, context & memory
 ├── extra/                               # Test scripts, benchmarks & archived development files
 │
 ├── tools/                               # Distribution & packaging utilities

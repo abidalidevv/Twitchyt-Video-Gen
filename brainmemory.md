@@ -7,9 +7,10 @@
 ---
 
 ## 📌 Quick Summary for Any Future AI Agent
-- **Project Name:** StreamMix Studio (formerly TwitchYT / Twitch + YouTube Remix Engine)
-- **Primary Git Repo:** `e:\twitchyt\twitchyoutube` (Branch: `main`)
-- **Distribution / Mirror Root:** `e:\twitchyt\dist\StreamMixStudio` & `StreamMixStudio_Portable.zip`
+- **Primary Workspace Root:** `D:\Projects\twitchyt`
+- **Primary Git Repo:** `D:\Projects\twitchyt\twitchyoutube` (Branch: `main`)
+- **Distribution / Mirror Root:** `D:\Projects\twitchyt\dist\StreamMixStudio` & `StreamMixStudio_Portable.zip`
+- **Previous / Backup Drive:** `e:\twitchyt` (100% mirrored)
 - **Core Technology Stack:**
   - **Backend:** Python 3.10+, FastAPI, Uvicorn, FFmpeg 7+ (GPU accelerated), yt-dlp, Groq Whisper Large v3, Groq Llama-3.
   - **Frontend:** Vanilla HTML5, CSS3 Glassmorphism, JavaScript (zero external node_modules or build steps needed), 16:9 WYSIWYG Canvas Director.
@@ -115,7 +116,7 @@ User ne jab standalone EXE build karke apne doston ko share kiya, to doston ke s
 ## 📂 4. Complete Project Directory Structure & Key Files
 
 ```
-e:\twitchyt\
+D:\Projects\twitchyt\
 ├── twitchyoutube\                       # 🌟 PRIMARY GIT REPOSITORY (Branch: main)
 │   ├── 1_RUN_APP.bat                    # Dev Mode Runner (Auto-installs pip requirements & starts app)
 │   ├── START_STREAMMIX.bat              # Release Runner (Unblocks MotW and launches StreamMixStudio.exe)
@@ -188,9 +189,9 @@ Jab aap Windows fresh install kar lein aur naye PC par ya naye OS par StreamMix 
    - ⚠️ **VERY IMPORTANT:** Installation ke waqt **"Add Python to PATH"** checkbox ko zaroor tick karein!
 
 ### Step 2: Open Project Directory
-Project hamesha apni original drive / directory par rahega:
+Project aap ke dedicated projects folder par mojood hai:
 ```powershell
-cd e:\twitchyt\twitchyoutube
+cd D:\Projects\twitchyt\twitchyoutube
 ```
 
 ### Step 3: Install Required Python Packages
@@ -202,7 +203,7 @@ python -m pip install -r requirements.txt
 *(Dependencies: `fastapi`, `uvicorn`, `groq`, `yt-dlp`, `pillow`, `pywebview`, `pythonnet`, `pyinstaller`)*
 
 ### Step 4: Verify Portable Binaries
-Verify karein ke `e:\twitchyt\twitchyoutube\bin\ffmpeg.exe` aur `ffprobe.exe` mojood hain:
+Verify karein ke `D:\Projects\twitchyt\twitchyoutube\bin\ffmpeg.exe` aur `ffprobe.exe` mojood hain:
 ```powershell
 .\bin\ffmpeg.exe -version
 ```
@@ -245,3 +246,4 @@ Agar aainda mazeed features add karne hon:
 - [x] Documentation updated: `README.md`, `BNissue.md`, `frontend/docs.html`, and `brainmemory.md`.
 - [x] `.gitignore` updated to track `brainmemory.md` and `ThisTool.md`.
 - [x] Git committed and pushed to `origin main`.
+
